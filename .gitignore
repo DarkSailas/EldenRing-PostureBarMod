@@ -1,0 +1,18 @@
+# Compiler & Build outputs
+build/
+*.o
+*.obj
+*.log
+*.pdb
+*.exp
+*.lib
+
+# IDE & Editor files
+.vs/
+*.sln.docstates
+*.user
+*.suo
+
+# Test artifacts
+diff_*.txt
+*.tmp

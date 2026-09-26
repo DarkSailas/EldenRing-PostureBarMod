@@ -1,0 +1,337 @@
+#pragma once
+#include "../Common.hpp"
+
+namespace ER 
+{
+    enum class EPostureBarType
+    {
+        Entity,
+        Boss
+    };
+
+    enum class EERDataType
+    {
+        Stagger,
+        Stamina,
+        STATUSES,
+        Poison,
+        Rot,
+        Bleed,
+        Blight,
+        Frost,
+        Sleep,
+        Madness,
+        MAX,
+    };
+
+    inline std::string to_string(const EERDataType erDataType)
+    {
+        switch (erDataType)
+        {
+        case EERDataType::Stagger:
+            return "Stagger";
+        case EERDataType::Stamina:
+            return "Stamina";
+        case EERDataType::Poison:
+            return "Poison";
+        case EERDataType::Rot:
+            return "Rot";
+        case EERDataType::Bleed:
+            return "Bleed";
+        case EERDataType::Blight:
+            return "Blight";
+        case EERDataType::Frost:
+            return "Frost";
+        case EERDataType::Sleep:
+            return "Sleep";
+        case EERDataType::Madness:
+            return "Madness";
+        default:
+            return "";
+        }
+    }
+
+    struct BarData
+    {
+        float value = 0.0f;
+        float maxValue = 0.0f;
+
+        void SetValue(float inValue, float inMaxValue) { value = inValue, maxValue = inMaxValue; };
+        void SetValue(int inValue, int inMaxValue) { value = static_cast<float>(inValue), maxValue = static_cast<float>(inMaxValue); };
+        void SetInverseValue(int inValue, int inMaxValue) { maxValue = static_cast<float>(inMaxValue); value = maxValue - static_cast<float>(inValue); };
+        float GetRatio() { return value / maxValue; }
+        bool IsValueMax() { return value == maxValue; }
+        bool IsValueZeroOrLess() { return value <= 0; }
+    };
+
+    struct PlayerPostureBarData
+    {
+        float maxStagger = 0.0f;
+        float stagger = 0.0f;
+
+        // Stagger reset
+        float previousStagger = 1.0f; // set to 1, as 0 would conflict with checking for posture break
+        bool  isResetStagger = false;
+        float resetStaggerTimer = 0.0f;
+        std::chrono::steady_clock::time_point lastTimePoint{};
+
+        static inline bool  drawBar = true;
+        static inline float barWidth = 286.0f;
+        static inline float barHeight = 28.0f;
+        static inline float resetStaggerTotalTime = 2.0f;
+        static inline float screenX = 963.0f;
+        static inline float screenY = 100.0f;
+
+#ifdef DEBUGLOG
+        void LogDebug();
+#endif
+    };
+
+    struct BossPostureBarData
+    {
+        unsigned long long entityHandle = 0;
+        int  displayId = -1;
+        bool isStamina = false;
+        bool isVisible = false;
+        bool hasValidBar = false;
+
+        EnumArray<EERDataType, BarData> barDatas = make_map<EERDataType, BarData>();
+
+        // Stagger reset
+        float previousStagger = 1.0f; // set to 1, as 0 would conflict with checking for posture break
+        bool  isResetStagger = false;
+        float resetStaggerTimer = 0.0f;
+        std::chrono::steady_clock::time_point lastTimePoint{};
+
+        float statusActiveTimer[7] = { 0.0f };
+        int previousResistance[7] = { -1, -1, -1, -1, -1, -1, -1 };
+        bool statusIsActive[7] = { false };
+        int debugSpCount = 0;
+        int debugSpIds[6] = { 0 };
+
+        static inline bool  drawBars = true;
+        static inline bool  useStaminaForNPC = true;
+        static inline float barWidth = 998.0f;
+        static inline float barHeight = 16.0f;
+        static inline float resetStaggerTotalTime = 2.0f;
+        static inline float firstBossScreenX = 963.0f;
+        static inline float firstBossScreenY = 945.0f;
+        static inline float nextBossBarDiffScreenY = 55.0f;
+
+        // Status bars
+        static inline bool  drawStatusBars = false;
+        static inline bool  alwaysPresent = false;
+        static inline bool  drawForOnlyFirst = true;
+        static inline float statusBarWidth = 50.0f;
+        static inline float statusBarHeight = 50.0f;
+        static inline float firstStatusBarDiffScreenX = -998.0f;
+        static inline float firstStatusBarDiffScreenY = 50.0f;
+        static inline float nextStatusBarDiffScreenX = 50.0f;
+        static inline float nextStatusBarDiffScreenY = 0.0f;
+
+        static inline EnumArray<EERDataType, bool> drawBar = make_map<EERDataType, bool>();
+
+#ifdef DEBUGLOG
+        void LogDebug();
+#endif
+    };
+
+    struct EntityPostureBarData
+    {
+        unsigned long long entityHandle = 0;
+        bool  isStamina = false;
+        bool  isVisible = false;
+        bool  hasValidBar = false;
+        float screenX = 0.0f;
+        float screenY = 0.0f;
+        float distanceModifier = 0.0f;
+
+        // Position Fixing by movement velocity
+        float previousScreenX = -1.0f;
+        float previousScreenY = -1.0f;
+        std::chrono::steady_clock::time_point gameUiUpdateTimePoint{};
+        std::chrono::steady_clock::time_point gamePreviousUiUpdateTimePoint{};
+
+        float statusActiveTimer[7] = { 0.0f };
+        int previousResistance[7] = { -1, -1, -1, -1, -1, -1, -1 };
+        bool statusIsActive[7] = { false };
+        int debugSpCount = 0;
+        int debugSpIds[6] = { 0 };
+
+        EnumArray<EERDataType, BarData> barDatas = make_map<EERDataType, BarData>();
+
+        // Stagger reset
+        float previousStagger = 1.0f; // set to 1, as 0 would conflict with checking for posture break
+        bool  isResetStagger = false;
+        float resetStaggerTimer = 0.0f;
+        std::chrono::steady_clock::time_point lastTimePoint{};
+
+        static inline bool   drawBars = true;
+        static inline bool   useStaminaForNPC = true;
+        static inline float  barWidth = 138.0f;
+        static inline float  barHeight = 5.0f;
+        static inline float  resetStaggerTotalTime = 2.0f;
+        static inline float  offsetScreenX = -1.0f;
+        static inline float  offsetScreenY = -10.0f;
+        static inline float  leftScreenThreshold = 130.0f;
+        static inline float  rightScreenThreshold = 1790.0f;
+        static inline float  topScreenThreshold = 175.0f;
+        static inline float  bottomScreenThreshold = 990.0f;
+        static inline bool   usePositionFixing = true;
+        static inline double positionFixingMultiplierX = 10.0f;
+        static inline double positionFixingMultiplierY = 10.0f;
+        static inline bool   onlyTarget = false;
+
+        // Status bars
+        static inline bool  drawStatusBars = false;
+        static inline bool  alwaysPresent = false;
+        static inline float statusBarWidth = 25.0f;
+        static inline float statusBarHeight = 25.0f;
+        static inline float firstStatusBarDiffScreenX = -138.0f;
+        static inline float firstStatusBarDiffScreenY = 25.0f;
+        static inline float nextStatusBarDiffScreenX = 25.0f;
+        static inline float nextStatusBarDiffScreenY = 0.0f;
+
+        static inline EnumArray<EERDataType, bool> drawBar = make_map<EERDataType, bool>();
+
+#ifdef DEBUGLOG
+        void LogDebug();
+#endif
+    };
+
+    struct ScreenParams
+    {
+        static inline float inGameCoordSizeX = 1920.0f;
+        static inline float inGameCoordSizeY = 1080.0f;
+        static inline float posX = 0.0f;
+        static inline float posY = 0.0f;
+        static inline float gameToViewportScaling = 1.0f;
+        static inline bool  autoPositionSetup = true;
+        static inline bool  autoGameToViewportScaling = true;
+    };
+
+    enum class EBarShapeType
+    {
+        Rectangle,
+        Circle,
+        Last
+    };
+
+    enum class EFillAlignment : uint_fast8_t
+    {
+        Left,
+        Center,
+        Right,
+        Last
+    };
+
+    enum class EFillType : uint_fast8_t
+    {
+        FullToEmpty,
+        EmptyToFull,
+        Last
+    };
+
+    enum class EFillResizeType : uint_fast8_t
+    {
+        Clip,
+        Scale,
+        Last
+    };
+
+    struct BarStyle
+    {
+        static inline EBarShapeType statusBarShape = EBarShapeType::Circle;
+        static inline EFillAlignment fillAlignment = EFillAlignment::Left;
+        static inline EFillType fillType = EFillType::FullToEmpty;
+        static inline EFillResizeType fillResizeType = EFillResizeType::Clip;
+        static inline ImVec4 staggerMaxColor = { 255, 255, 0, 255 };
+        static inline ImVec4 staggerMinColor = { 255, 255, 0, 255 };
+        static inline ImVec4 staminaMaxColor = { 80, 200, 104, 255 };
+        static inline ImVec4 staminaMinColor = { 80, 200, 104, 255 };
+
+        static inline ImVec4 poisonMaxColor =  { 100, 250, 85, 255 };
+        static inline ImVec4 poisonMinColor =  { 100, 250, 85, 255 };
+        static inline ImVec4 rotMaxColor =     { 255, 127, 0, 255 };
+        static inline ImVec4 rotMinColor =     { 255, 127, 0, 255 };
+        static inline ImVec4 bleedMaxColor =   { 255, 0, 0, 255 }; 
+        static inline ImVec4 bleedMinColor =   { 255, 0, 0, 255 }; 
+        static inline ImVec4 blightMaxColor =  { 200, 200, 0, 255 };
+        static inline ImVec4 blightMinColor =  { 200, 200, 0, 255 };
+        static inline ImVec4 frostMaxColor =   { 40, 225, 255, 255 };
+        static inline ImVec4 frostMinColor =   { 40, 225, 255, 255 };
+        static inline ImVec4 sleepMaxColor =   { 240, 0, 200, 255 };
+        static inline ImVec4 sleepMinColor =   { 240, 0, 200, 255 };
+        static inline ImVec4 madnessMaxColor = { 255, 255, 0, 255 };
+        static inline ImVec4 madnessMinColor = { 255, 255, 0, 255 };
+    };
+
+    typedef std::pair<ImVec2 /* top-left */, ImVec2 /* bot-right*/> FillTextureOffset;
+
+    struct TextureData
+    {
+        ImTextureID texture = nullptr;
+        float width = 0.0f;
+        float height = 0.0f;
+
+        static inline bool useTextures = true;
+        static inline FillTextureOffset bossOffset = { {0.0f, 0.0f}, {0.0f, 0.0f} };
+        static inline FillTextureOffset entityOffset = { {0.0f, 0.0f}, {0.0f, 0.0f} };
+        static inline ImVec2 circleOffset = { 0.0f, 0.0f };
+    };
+
+    typedef std::pair<TextureData /* border */, TextureData /* fill */> TextureBar;
+    typedef TextureData /* border */ TextureCircle;
+
+    struct StatusIconConfig
+    {
+        static inline bool drawStatusIcons = true;
+        static inline bool entityIconsTop = true;
+        static inline float entityIconSize = 22.0f;
+        static inline float entityIconOffsetY = 0.0f;
+        static inline bool bossIconsTop = true;
+        static inline float bossIconSize = 34.0f;
+        static inline float bossIconOffsetY = 0.0f;
+    };
+
+
+    class PostureBarUI
+    {
+    public:
+        PostureBarUI()  noexcept = default;
+        ~PostureBarUI() noexcept = default;
+        PostureBarUI(PostureBarUI const&) = delete;
+        PostureBarUI(PostureBarUI&&) = delete;
+        PostureBarUI& operator=(PostureBarUI const&) = delete;
+        PostureBarUI& operator=(PostureBarUI&&) = delete;
+
+        // Draws UI posture bars, use after starting imgui new frame
+        void Draw();
+        ImColor getBarColor(EERDataType StatusEffectType, float fillRatio);
+        std::pair<ImVec4, ImVec4> getMinMaxColor(EERDataType StatusEffectType);
+        void drawBar(const EPostureBarType postureBarType, const EERDataType statusEffectType, const ImVec2& position, const ImVec2& size, float fillRatio);
+        void drawBar(const TextureBar& textureBar, const ImColor& color, const ImVec2& position, const ImVec2& size, const std::pair<ImVec2 /* top-left */, ImVec2 /* bot-right */>& fillOffset, float fillRatio);
+        void drawBar(const ImColor& color, const ImVec2& position, const ImVec2& size, float fillRatio);
+        void drawCircleBar(const ImColor& color, const ImVec2& position, const ImVec2& size, float fillRatio);
+        void drawCircle(const ImColor& color, const ImVec2& position, const ImVec2& size, float fillRatio);
+
+        static bool isMenuOpen();
+
+        // Hooked func on update of in game UI bars
+        static void updateUIBarStructs(uintptr_t moveMapStep, uintptr_t time);
+        static inline void (*updateUIBarStructsOriginal)(uintptr_t, uintptr_t);
+
+        std::optional<PlayerPostureBarData> playerPostureBar = std::nullopt;
+        std::array<std::optional<EntityPostureBarData>, ENTITY_CHR_ARRAY_LEN> entityPostureBars = make_array<std::optional<EntityPostureBarData>, ENTITY_CHR_ARRAY_LEN>(std::nullopt);
+        std::array<std::optional<BossPostureBarData>, BOSS_CHR_ARRAY_LEN> bossPostureBars = make_array<std::optional<BossPostureBarData>, BOSS_CHR_ARRAY_LEN>(std::nullopt);
+
+        TextureBar entityBarTexture;
+        TextureBar bossBarTexture;
+        TextureCircle circleTexture;
+        ImTextureID statusIconTextures[7] = { nullptr };
+        bool textureBarInit = false;
+        inline static std::mutex dataMutex;
+    };
+
+    inline std::unique_ptr<PostureBarUI> g_postureUI;
+};
