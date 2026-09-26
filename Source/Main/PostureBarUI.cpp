@@ -761,14 +761,8 @@ namespace ER
 
         for (IndexType i = 0; i < BOSS_CHR_ARRAY_LEN; i++)
         {
-            if (feMan->bossHpBars[i].displayId < 0 || feMan->bossHpBars[i].displayId > 100)
-            {
-                g_postureUI->bossPostureBars[i] = std::nullopt;
-                continue;
-            }
-
             auto&& entityHandle = feMan->bossHpBars[i].bossHandle;
-            if (entityHandle == 0 || entityHandle == __UINT64_MAX__)
+            if (entityHandle == 0 || entityHandle == __UINT64_MAX__ || feMan->bossHpBars[i].displayId < 0)
             {
                 g_postureUI->bossPostureBars[i] = std::nullopt;
                 continue;
