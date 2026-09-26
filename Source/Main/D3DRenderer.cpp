@@ -3,7 +3,6 @@
 #include "Logger.hpp"
 #include "Hooking.hpp"
 #include "PostureBarUI.hpp"
-#include "VisualAtmosphereUI.hpp"
 #include <d3d11.h>
 #include <mutex>
 
@@ -11,117 +10,6 @@
 #include "../Stb/stb_image.h"
 
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
-// -------------------------------------------------------------
-// Safe User32 Hooks to intercept mouse/keyboard when menu is open
-// -------------------------------------------------------------
-typedef UINT (WINAPI *FnGetRawInputData)(HRAWINPUT hRawInput, UINT uiCommand, LPVOID pData, PUINT pcbSize, UINT cbSizeHeader);
-static FnGetRawInputData oGetRawInputData = nullptr;
-
-static UINT WINAPI Hooked_GetRawInputData(HRAWINPUT hRawInput, UINT uiCommand, LPVOID pData, PUINT pcbSize, UINT cbSizeHeader)
-{
-    if (g_ShowVAMenu)
-    {
-        if (uiCommand == RID_INPUT && pData && pcbSize)
-        {
-            UINT ret = oGetRawInputData(hRawInput, uiCommand, pData, pcbSize, cbSizeHeader);
-            if (ret != (UINT)-1)
-            {
-                RAWINPUT* raw = (RAWINPUT*)pData;
-                if (raw->header.dwType == RIM_TYPEMOUSE)
-                {
-                    raw->data.mouse.lLastX = 0;
-                    raw->data.mouse.lLastY = 0;
-                    raw->data.mouse.usButtonFlags = 0;
-                    raw->data.mouse.usButtonData = 0;
-                }
-                else if (raw->header.dwType == RIM_TYPEKEYBOARD)
-                {
-                    raw->data.keyboard.VKey = 0;
-                    raw->data.keyboard.Message = WM_NULL;
-                }
-            }
-            return ret;
-        }
-    }
-    return oGetRawInputData ? oGetRawInputData(hRawInput, uiCommand, pData, pcbSize, cbSizeHeader) : GetRawInputData(hRawInput, uiCommand, pData, pcbSize, cbSizeHeader);
-}
-
-typedef BOOL (WINAPI *FnSetCursorPos)(int X, int Y);
-static FnSetCursorPos oSetCursorPos = nullptr;
-
-static BOOL WINAPI Hooked_SetCursorPos(int X, int Y)
-{
-    if (g_ShowVAMenu)
-    {
-        return TRUE;
-    }
-    return oSetCursorPos ? oSetCursorPos(X, Y) : SetCursorPos(X, Y);
-}
-
-typedef BOOL (WINAPI *FnClipCursor)(const RECT* lpRect);
-static FnClipCursor oClipCursor = nullptr;
-
-static BOOL WINAPI Hooked_ClipCursor(const RECT* lpRect)
-{
-    if (g_ShowVAMenu)
-    {
-        return TRUE;
-    }
-    return oClipCursor ? oClipCursor(lpRect) : ClipCursor(lpRect);
-}
-
-typedef SHORT (WINAPI *FnGetAsyncKeyState)(int vKey);
-static FnGetAsyncKeyState oGetAsyncKeyState = nullptr;
-
-static SHORT WINAPI Hooked_GetAsyncKeyState(int vKey)
-{
-    if (g_ShowVAMenu)
-    {
-        if (vKey == VK_F5 || vKey == VK_ESCAPE)
-            return oGetAsyncKeyState ? oGetAsyncKeyState(vKey) : GetAsyncKeyState(vKey);
-        return 0;
-    }
-    return oGetAsyncKeyState ? oGetAsyncKeyState(vKey) : GetAsyncKeyState(vKey);
-}
-
-static void InstallInputHooks()
-{
-    static bool s_Installed = false;
-    if (s_Installed) return;
-    s_Installed = true;
-
-    HMODULE hUser32 = GetModuleHandleA("user32.dll");
-    if (hUser32)
-    {
-        void* pGetRawInputData = (void*)GetProcAddress(hUser32, "GetRawInputData");
-        void* pSetCursorPos = (void*)GetProcAddress(hUser32, "SetCursorPos");
-        void* pClipCursor = (void*)GetProcAddress(hUser32, "ClipCursor");
-        void* pGetAsyncKeyState = (void*)GetProcAddress(hUser32, "GetAsyncKeyState");
-
-        if (pGetRawInputData)
-        {
-            MH_CreateHook(pGetRawInputData, (void*)&Hooked_GetRawInputData, (void**)&oGetRawInputData);
-            MH_EnableHook(pGetRawInputData);
-        }
-        if (pSetCursorPos)
-        {
-            MH_CreateHook(pSetCursorPos, (void*)&Hooked_SetCursorPos, (void**)&oSetCursorPos);
-            MH_EnableHook(pSetCursorPos);
-        }
-        if (pClipCursor)
-        {
-            MH_CreateHook(pClipCursor, (void*)&Hooked_ClipCursor, (void**)&oClipCursor);
-            MH_EnableHook(pClipCursor);
-        }
-        if (pGetAsyncKeyState)
-        {
-            MH_CreateHook(pGetAsyncKeyState, (void*)&Hooked_GetAsyncKeyState, (void**)&oGetAsyncKeyState);
-            MH_EnableHook(pGetAsyncKeyState);
-        }
-    }
-}
-
 
 namespace ER 
 {
@@ -307,7 +195,6 @@ namespace ER
             CreateHook(54, (void**)&oExecuteCommandLists, (void*)HookExecuteCommandLists);
             Logger::log("Hooking Present");
             CreateHook(140, (void**)&oPresent, (void*)HookPresent);
-            InstallInputHooks();
             return 1;
         }
 
@@ -974,12 +861,6 @@ namespace ER
         Logger::log("Draw posture bar UI", LogLevel::Debug);
         g_postureUI->Draw();
 
-        // Draw stylish VisualAtmosphere settings menu
-        if (g_ShowVAMenu)
-        {
-            DrawVisualAtmosphereMenu();
-        }
-
         Logger::log("ImGui end frame", LogLevel::Debug);
         ImGui::EndFrame();
 
@@ -1034,79 +915,9 @@ namespace ER
 
     LRESULT D3DRenderer::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
-        // 1. Hotkey F5 to toggle VisualAtmosphere menu
-        if (msg == WM_KEYDOWN && wParam == VK_F5)
+        if (ImGui::GetCurrentContext())
         {
-            g_ShowVAMenu = !g_ShowVAMenu;
-            if (ImGui::GetCurrentContext())
-            {
-                ImGui::GetIO().MouseDrawCursor = g_ShowVAMenu;
-            }
-            if (g_ShowVAMenu)
-            {
-                ClipCursor(NULL);
-                ReleaseCapture();
-                while (ShowCursor(TRUE) < 0);
-            }
-            else
-            {
-                while (ShowCursor(FALSE) >= 0);
-            }
-            return 0;
-        }
-
-        // 2. If menu is open:
-        if (g_ShowVAMenu)
-        {
-            if (msg == WM_KEYDOWN && wParam == VK_ESCAPE)
-            {
-                g_ShowVAMenu = false;
-                if (ImGui::GetCurrentContext())
-                {
-                    ImGui::GetIO().MouseDrawCursor = false;
-                }
-                while (ShowCursor(FALSE) >= 0);
-                return 0;
-            }
-
-            if (ImGui::GetCurrentContext())
-            {
-                ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam);
-            }
-
-            // Block clicks, raw mouse input and keyboard inputs from reaching the game character
-            switch (msg)
-            {
-            case WM_INPUT:
-            case WM_MOUSEMOVE:
-            case WM_LBUTTONDOWN:
-            case WM_LBUTTONUP:
-            case WM_LBUTTONDBLCLK:
-            case WM_RBUTTONDOWN:
-            case WM_RBUTTONUP:
-            case WM_RBUTTONDBLCLK:
-            case WM_MBUTTONDOWN:
-            case WM_MBUTTONUP:
-            case WM_MBUTTONDBLCLK:
-            case WM_MOUSEWHEEL:
-            case WM_MOUSEHWHEEL:
-            case WM_KEYDOWN:
-            case WM_KEYUP:
-            case WM_SYSKEYDOWN:
-            case WM_SYSKEYUP:
-            case WM_CHAR:
-                return 0;
-
-            case WM_SETCURSOR:
-                return 1;
-            }
-        }
-        else
-        {
-            if (ImGui::GetCurrentContext())
-            {
-                ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam);
-            }
+            ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam);
         }
 
         if (g_D3DRenderer && g_D3DRenderer->m_OldWndProc)
