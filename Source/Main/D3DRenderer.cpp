@@ -12,6 +12,58 @@
 
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+// -------------------------------------------------------------
+// Safe User32 Hooks to release cursor when VisualAtmosphere menu is open
+// -------------------------------------------------------------
+typedef BOOL (WINAPI *FnSetCursorPos)(int X, int Y);
+static FnSetCursorPos oSetCursorPos = nullptr;
+
+static BOOL WINAPI Hooked_SetCursorPos(int X, int Y)
+{
+    if (g_ShowVAMenu)
+    {
+        return TRUE; // Stop Elden Ring from pinning mouse to center while menu is open
+    }
+    return oSetCursorPos ? oSetCursorPos(X, Y) : SetCursorPos(X, Y);
+}
+
+typedef BOOL (WINAPI *FnClipCursor)(const RECT* lpRect);
+static FnClipCursor oClipCursor = nullptr;
+
+static BOOL WINAPI Hooked_ClipCursor(const RECT* lpRect)
+{
+    if (g_ShowVAMenu)
+    {
+        return TRUE; // Stop Elden Ring from confining mouse while menu is open
+    }
+    return oClipCursor ? oClipCursor(lpRect) : ClipCursor(lpRect);
+}
+
+static void InstallCursorHooks()
+{
+    static bool s_Installed = false;
+    if (s_Installed) return;
+    s_Installed = true;
+
+    HMODULE hUser32 = GetModuleHandleA("user32.dll");
+    if (hUser32)
+    {
+        void* pSetCursorPos = (void*)GetProcAddress(hUser32, "SetCursorPos");
+        void* pClipCursor = (void*)GetProcAddress(hUser32, "ClipCursor");
+
+        if (pSetCursorPos)
+        {
+            MH_CreateHook(pSetCursorPos, (void*)&Hooked_SetCursorPos, (void**)&oSetCursorPos);
+            MH_EnableHook(pSetCursorPos);
+        }
+        if (pClipCursor)
+        {
+            MH_CreateHook(pClipCursor, (void*)&Hooked_ClipCursor, (void**)&oClipCursor);
+            MH_EnableHook(pClipCursor);
+        }
+    }
+}
+
 namespace ER 
 {
     HWND FindERWindow()
@@ -196,6 +248,7 @@ namespace ER
             CreateHook(54, (void**)&oExecuteCommandLists, (void*)HookExecuteCommandLists);
             Logger::log("Hooking Present");
             CreateHook(140, (void**)&oPresent, (void*)HookPresent);
+            InstallCursorHooks();
             return 1;
         }
 
@@ -857,6 +910,16 @@ namespace ER
         Logger::log("ImGui create new farme", LogLevel::Debug);
         ImGui_ImplDX12_NewFrame();
         ImGui_ImplWin32_NewFrame();
+
+        if (g_ShowVAMenu && g_D3DRenderer && g_D3DRenderer->programData && g_D3DRenderer->programData->m_GameWindow)
+        {
+            POINT pt;
+            if (GetCursorPos(&pt) && ScreenToClient(g_D3DRenderer->programData->m_GameWindow, &pt))
+            {
+                ImGui::GetIO().MousePos = ImVec2((float)pt.x, (float)pt.y);
+            }
+        }
+
         ImGui::NewFrame();
 
         Logger::log("Draw posture bar UI", LogLevel::Debug);

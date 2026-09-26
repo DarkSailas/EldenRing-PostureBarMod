@@ -624,48 +624,29 @@ namespace ER
                 if (isSafeReadable(node + 0x44))
                     remainingDuration = *(float*)(node + 0x44);
 
+                // CRITICAL FIX: Only active temporary status effects have a positive remaining countdown timer!
+                // Any permanent trait, passive immunity, boss attribute, or weapon affinity has remainingDuration <= 0.0f.
+                if (remainingDuration <= 0.05f || remainingDuration > 600.0f)
+                {
+                    uintptr_t nextNode = *(uintptr_t*)(node + 0x30);
+                    if (nextNode == node) break;
+                    node = nextNode;
+                    continue;
+                }
+
                 if (outSpIds && debugCount < 6)
                 {
                     outSpIds[debugCount++] = id;
                 }
 
-                int statusIdx = -1;
-
-                // 1. Direct stateInfo check from engine SpEffectParam (the definitive truth for 100% of procs)
-                uintptr_t paramPtr = *(uintptr_t*)node;
-                if (isSafeReadable(paramPtr) && isSafeReadable(paramPtr + 0x158))
-                {
-                    uint16_t stateInfo = *(uint16_t*)(paramPtr + 0x156);
-                    switch (stateInfo)
-                    {
-                    case 2:   statusIdx = 0; break; // Poison
-                    case 5:   statusIdx = 1; break; // Rot
-                    case 6:   statusIdx = 2; break; // Bleed
-                    case 117: statusIdx = 3; break; // Blight
-                    case 260: statusIdx = 4; break; // Frost
-                    case 436: statusIdx = 5; break; // Sleep
-                    case 437: statusIdx = 6; break; // Madness
-                    default: break;
-                    }
-                }
-
-                // 2. Fallback to ID map if stateInfo was not one of standard 7
-                if (statusIdx < 0 && id > 0)
-                {
-                    statusIdx = mapSpEffectToStatus(id);
-                }
+                int statusIdx = mapSpEffectToStatus(id);
 
                 if (statusIdx >= 0 && statusIdx < 7)
                 {
                     activeStatus[statusIdx] = true;
-                    if (remainingDuration > 0.0f && remainingDuration < 600.0f)
+                    if (remainingDuration > activeTimer[statusIdx])
                     {
-                        if (remainingDuration > activeTimer[statusIdx])
-                            activeTimer[statusIdx] = remainingDuration;
-                    }
-                    else if (activeTimer[statusIdx] < 1.0f)
-                    {
-                        activeTimer[statusIdx] = (statusIdx == 0 || statusIdx == 1 || statusIdx == 4) ? 30.0f : (statusIdx == 5 ? 15.0f : 4.0f);
+                        activeTimer[statusIdx] = remainingDuration;
                     }
                 }
 
@@ -831,13 +812,12 @@ namespace ER
                             int curVal = curRes[s];
                             int maxVal = maxRes[s];
 
-                            if (maxVal > 0)
+                            if (maxVal > 0 && maxVal < 50000)
                             {
-                                bool isProcced = (prevVal > 0 && curVal <= 0) || (curVal >= maxVal && prevVal > 0 && prevVal < maxVal);
-                                bool justReset = (prevVal >= (int)(maxVal * 0.85f) && curVal <= (int)(maxVal * 0.15f)) ||
-                                                 (prevVal > 0 && prevVal <= (int)(maxVal * 0.25f) && curVal >= (int)(maxVal * 0.75f));
+                                bool isProcced = (prevVal >= (int)(maxVal * 0.5f) && curVal <= (int)(maxVal * 0.10f)) ||
+                                                 (curVal >= maxVal && prevVal > 0 && prevVal < maxVal);
 
-                                if (isProcced || justReset)
+                                if (isProcced)
                                 {
                                     float duration = (s == 0 || s == 1 || s == 4) ? 30.0f : (s == 5 ? 15.0f : 4.0f);
                                     if (timer < 1.0f)
@@ -961,13 +941,12 @@ namespace ER
                             int curVal = curRes[s];
                             int maxVal = maxRes[s];
 
-                            if (maxVal > 0)
+                            if (maxVal > 0 && maxVal < 50000)
                             {
-                                bool isProcced = (prevVal > 0 && curVal <= 0) || (curVal >= maxVal && prevVal > 0 && prevVal < maxVal);
-                                bool justReset = (prevVal >= (int)(maxVal * 0.85f) && curVal <= (int)(maxVal * 0.15f)) ||
-                                                 (prevVal > 0 && prevVal <= (int)(maxVal * 0.25f) && curVal >= (int)(maxVal * 0.75f));
+                                bool isProcced = (prevVal >= (int)(maxVal * 0.5f) && curVal <= (int)(maxVal * 0.10f)) ||
+                                                 (curVal >= maxVal && prevVal > 0 && prevVal < maxVal);
 
-                                if (isProcced || justReset)
+                                if (isProcced)
                                 {
                                     float duration = (s == 0 || s == 1 || s == 4) ? 30.0f : (s == 5 ? 15.0f : 4.0f);
                                     if (timer < 1.0f)
