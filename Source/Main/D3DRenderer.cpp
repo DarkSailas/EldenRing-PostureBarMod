@@ -913,10 +913,19 @@ namespace ER
 
         if (g_ShowVAMenu && g_D3DRenderer && g_D3DRenderer->programData && g_D3DRenderer->programData->m_GameWindow)
         {
+            // Release any cursor confinement the game may re-apply between frames
+            ClipCursor(NULL);
+
             POINT pt;
             if (GetCursorPos(&pt) && ScreenToClient(g_D3DRenderer->programData->m_GameWindow, &pt))
             {
-                ImGui::GetIO().MousePos = ImVec2((float)pt.x, (float)pt.y);
+                ImGuiIO& io = ImGui::GetIO();
+                io.MousePos = ImVec2((float)pt.x, (float)pt.y);
+                // Feed mouse button states directly — Elden Ring uses Raw Input,
+                // so WM_LBUTTONDOWN may never fire. This is a direct API call, NOT a hook.
+                io.MouseDown[0] = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
+                io.MouseDown[1] = (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
+                io.MouseDown[2] = (GetAsyncKeyState(VK_MBUTTON) & 0x8000) != 0;
             }
         }
 
@@ -935,7 +944,7 @@ namespace ER
         ImGui::EndFrame();
 
         UINT bufferIndex = pSwapChain3->GetCurrentBackBufferIndex();
-        Logger::log("ImGui swap chain buffer index: " + std::to_string(bufferIndex), LogLevel::Debug);
+        { char _dbgBuf[64]; snprintf(_dbgBuf, sizeof(_dbgBuf), "ImGui swap chain buffer index: %u", bufferIndex); Logger::log(_dbgBuf, LogLevel::Debug); }
 
         D3D12_RESOURCE_BARRIER barrier = {};
         barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;

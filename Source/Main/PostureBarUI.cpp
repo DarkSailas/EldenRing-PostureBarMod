@@ -490,6 +490,7 @@ namespace ER
         float end_angle = start_angle + fillRatio * 2.0f * IM_PI;
 
         ImVector<ImVec2> circlePoints;
+        circlePoints.reserve(segments + 2);
         circlePoints.push_back(position);
 
         for (int i = 0; i <= segments; ++i)
@@ -624,9 +625,11 @@ namespace ER
                 if (isSafeReadable(node + 0x44))
                     remainingDuration = *(float*)(node + 0x44);
 
-                // CRITICAL FIX: Only active temporary status effects have a positive remaining countdown timer!
-                // Any permanent trait, passive immunity, boss attribute, or weapon affinity has remainingDuration <= 0.0f.
-                if (remainingDuration <= 0.05f || remainingDuration > 600.0f)
+                // CRITICAL FIX: Real status procs (poison, bleed, rot etc.) last 10-120 seconds.
+                // Resistance buildup SpEffects have very short durations (0.1-2.0s) and fire for ALL types
+                // simultaneously on any elemental hit, causing false "all statuses active" display.
+                // Threshold 3.0s filters out buildup while catching all real procs.
+                if (remainingDuration < 3.0f || remainingDuration > 600.0f)
                 {
                     uintptr_t nextNode = *(uintptr_t*)(node + 0x30);
                     if (nextNode == node) break;
