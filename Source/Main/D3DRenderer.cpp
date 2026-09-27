@@ -18,13 +18,33 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARA
 typedef BOOL (WINAPI *FnSetCursorPos)(int X, int Y);
 static FnSetCursorPos oSetCursorPos = nullptr;
 
+typedef BOOL (WINAPI *FnGetCursorPos)(LPPOINT lpPoint);
+static FnGetCursorPos oGetCursorPos = nullptr;
+
+static POINT s_SavedCenter = { 0, 0 };
+
 static BOOL WINAPI Hooked_SetCursorPos(int X, int Y)
 {
     if (g_ShowVAMenu)
     {
+        s_SavedCenter.x = X;
+        s_SavedCenter.y = Y;
         return TRUE; // Stop Elden Ring from pinning mouse to center while menu is open
     }
     return oSetCursorPos ? oSetCursorPos(X, Y) : SetCursorPos(X, Y);
+}
+
+static BOOL WINAPI Hooked_GetCursorPos(LPPOINT lpPoint)
+{
+    if (g_ShowVAMenu && lpPoint)
+    {
+        if (s_SavedCenter.x != 0 || s_SavedCenter.y != 0)
+        {
+            *lpPoint = s_SavedCenter;
+            return TRUE;
+        }
+    }
+    return oGetCursorPos ? oGetCursorPos(lpPoint) : GetCursorPos(lpPoint);
 }
 
 typedef BOOL (WINAPI *FnClipCursor)(const RECT* lpRect);
@@ -49,12 +69,18 @@ static void InstallCursorHooks()
     if (hUser32)
     {
         void* pSetCursorPos = (void*)GetProcAddress(hUser32, "SetCursorPos");
+        void* pGetCursorPos = (void*)GetProcAddress(hUser32, "GetCursorPos");
         void* pClipCursor = (void*)GetProcAddress(hUser32, "ClipCursor");
 
         if (pSetCursorPos)
         {
             MH_CreateHook(pSetCursorPos, (void*)&Hooked_SetCursorPos, (void**)&oSetCursorPos);
             MH_EnableHook(pSetCursorPos);
+        }
+        if (pGetCursorPos)
+        {
+            MH_CreateHook(pGetCursorPos, (void*)&Hooked_GetCursorPos, (void**)&oGetCursorPos);
+            MH_EnableHook(pGetCursorPos);
         }
         if (pClipCursor)
         {
@@ -917,7 +943,8 @@ namespace ER
             ClipCursor(NULL);
 
             POINT pt;
-            if (GetCursorPos(&pt) && ScreenToClient(g_D3DRenderer->programData->m_GameWindow, &pt))
+            BOOL gotPos = oGetCursorPos ? oGetCursorPos(&pt) : GetCursorPos(&pt);
+            if (gotPos && ScreenToClient(g_D3DRenderer->programData->m_GameWindow, &pt))
             {
                 ImGuiIO& io = ImGui::GetIO();
                 io.MousePos = ImVec2((float)pt.x, (float)pt.y);
