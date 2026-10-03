@@ -540,6 +540,53 @@ namespace ER
         return nullptr;
     }
 
+    // Resistance values count down from max as buildup accrues; on a proc the game
+    // snaps the value back to max. Natural decay also ends at max, but in small steps,
+    // so only a large single-update jump (or reaching zero) counts as a proc.
+    // prevTimer/prevRes are null when there is no previous sample for this entity.
+    static void updateResistanceStatus(GameData::ResistanceModule* rm, const float* prevTimer, const int* prevRes, float dt,
+                                       float outTimer[7], bool outActive[7], int outRes[7])
+    {
+        int curRes[7] = { rm->poison, rm->rot, rm->bleed, rm->blight, rm->frost, rm->sleep, rm->madness };
+        int maxRes[7] = { rm->poisonMax, rm->rotMax, rm->bleedMax, rm->blightMax, rm->frostMax, rm->sleepMax, rm->madnessMax };
+
+        bool procced[7] = {};
+        int procCount = 0;
+        for (int s = 0; s < 7; s++)
+        {
+            int curVal = curRes[s];
+            int maxVal = maxRes[s];
+            int prevVal = prevRes ? prevRes[s] : -1;
+
+            if (maxVal <= 0 || maxVal >= 50000 || prevVal <= 0 || prevVal > maxVal)
+                continue;
+
+            bool hitZero = curVal <= 0;
+            bool snappedToMax = curVal >= maxVal && (maxVal - prevVal) > (int)(maxVal * 0.25f);
+            if (hitZero || snappedToMax)
+            {
+                procced[s] = true;
+                procCount++;
+            }
+        }
+
+        // Several statuses "proccing" in one update is an enemy reset or module re-init, not a proc
+        bool isReset = procCount > 2;
+
+        for (int s = 0; s < 7; s++)
+        {
+            float timer = prevTimer ? prevTimer[s] - dt : 0.0f;
+            if (timer < 0.0f) timer = 0.0f;
+
+            if (procced[s] && !isReset && timer < 1.0f)
+                timer = (s == 0 || s == 1 || s == 4) ? 30.0f : (s == 5 ? 15.0f : 4.0f);
+
+            outTimer[s] = timer;
+            outActive[s] = (timer > 0.0f);
+            outRes[s] = curRes[s];
+        }
+    }
+
     // Full list of status effect IDs extracted from regulation.bin (Vanilla ER 1.14 + Convergence mod)
     // 0: Poison (stateInfo 2)
     static const int status_0_ids[] = { 834, 882, 883, 1622, 1785, 1939, 3120, 3121, 3176, 3178, 3180, 3182, 3307, 3370, 3750, 4002, 4004, 4525, 6500, 6501, 6502, 6503, 6504, 6505, 6510, 6511, 6512, 6513, 6514, 6515, 8571, 11560, 11561, 11605, 20000, 20001, 20002, 20003, 20004, 20005, 20006, 20007, 20008, 20009, 20010, 20011, 20012, 20013, 20014, 20015, 20016, 20017, 20018, 20019, 20110, 20120, 20130, 20140, 20141, 20142, 20150, 20151, 20152, 20160, 20161, 20162, 20163, 20170, 20175, 20180, 20181, 20190, 20500, 20501, 20502, 20503, 20504, 20505, 20506, 20507, 20508, 20509, 20510, 20511, 20512, 20513, 20514, 20515, 20516, 20517, 20518, 20519, 20600, 106000, 106001, 106002, 106003, 106004, 106005, 106006, 106007, 106008, 106009, 106010, 106011, 106012, 106013, 106014, 106015, 106016, 106017, 106018, 106019, 106020, 106021, 106022, 106023, 106024, 106025, 106050, 106051, 106052, 106053, 106054, 106055, 106056, 106057, 106058, 106059, 106060, 106061, 106062, 106063, 106064, 106065, 106066, 106067, 106068, 106069, 106070, 106071, 106072, 106073, 106074, 106075, 106100, 106101, 106102, 106103, 106104, 106105, 106106, 106107, 106108, 106109, 106110, 106111, 106112, 106113, 106114, 106115, 106116, 106117, 106118, 106119, 106120, 106121, 106122, 106123, 106124, 106125, 106150, 106151, 106152, 106153, 106154, 106155, 106156, 106157, 106158, 106159, 106160, 106161, 106162, 106163, 106164, 106165, 106166, 106167, 106168, 106169, 106170, 106171, 106172, 106173, 106174, 106175, 106200, 106201, 106202, 106203, 106204, 106205, 106206, 106207, 106208, 106209, 106210, 106211, 106212, 106213, 106214, 106215, 106216, 106217, 106218, 106219, 106220, 106221, 106222, 106223, 106224, 106225, 106250, 106251, 106252, 106253, 106254, 106255, 106256, 106257, 106258, 106259, 106260, 106261, 106262, 106263, 106264, 106265, 106266, 106267, 106268, 106269, 106270, 106271, 106272, 106273, 106274, 106275, 106300, 106301, 106302, 106303, 106304, 106305, 106306, 106307, 106308, 106309, 106310, 106311, 106312, 106313, 106314, 106315, 106316, 106317, 106318, 106319, 106320, 106321, 106322, 106323, 106324, 106325, 390612, 390617, 500370, 500430, 500431, 500440, 501236, 501720, 501840, 501841, 503580, 1721100, 1722000, 1723001, 1728000, 1728300, 20000820, 20001050, 20004006, 20020100, 20381261, 20500330, 20500331, 20500370 };
@@ -646,11 +693,9 @@ namespace ER
 
                 if (statusIdx >= 0 && statusIdx < 7)
                 {
+                    // The icon follows the effect itself; the timer is left to the resistance heuristic,
+                    // otherwise a cured or removed effect would keep its icon for the full duration.
                     activeStatus[statusIdx] = true;
-                    if (remainingDuration > activeTimer[statusIdx])
-                    {
-                        activeTimer[statusIdx] = remainingDuration;
-                    }
                 }
 
                 uintptr_t nextNode = *(uintptr_t*)(node + 0x30);
@@ -789,49 +834,20 @@ namespace ER
                 if (StatusIconConfig::drawStatusIcons)
                 {
                     auto* rm = getValidResistanceModule(chrIns->chrModulelBag);
-                    if (rm && isSafeMemory((uintptr_t)rm))
+                    if (rm)
                     {
-                        int curRes[7] = { rm->poison, rm->rot, rm->bleed, rm->blight, rm->frost, rm->sleep, rm->madness };
-                        int maxRes[7] = { rm->poisonMax, rm->rotMax, rm->bleedMax, rm->blightMax, rm->frostMax, rm->sleepMax, rm->madnessMax };
-
+                        bool hasPrevious = previousBossPostureBarData && previousBossPostureBarData->entityHandle == entityHandle;
                         float dt = 0.016f;
-                        if (previousBossPostureBarData && previousBossPostureBarData->entityHandle == entityHandle)
+                        if (hasPrevious)
                         {
                             dt = std::chrono::duration_cast<std::chrono::duration<float>>(timePoint - previousBossPostureBarData->lastTimePoint).count();
                             if (dt <= 0.0f || dt > 1.0f) dt = 0.016f;
                         }
 
-                        for (int s = 0; s < 7; s++)
-                        {
-                            float timer = 0.0f;
-                            int prevVal = -1;
-                            if (previousBossPostureBarData && previousBossPostureBarData->entityHandle == entityHandle)
-                            {
-                                timer = previousBossPostureBarData->statusActiveTimer[s] - dt;
-                                if (timer < 0.0f) timer = 0.0f;
-                                prevVal = previousBossPostureBarData->previousResistance[s];
-                            }
-
-                            int curVal = curRes[s];
-                            int maxVal = maxRes[s];
-
-                            if (maxVal > 0 && maxVal < 50000)
-                            {
-                                bool isProcced = (prevVal >= (int)(maxVal * 0.5f) && curVal <= (int)(maxVal * 0.10f)) ||
-                                                 (curVal >= maxVal && prevVal > 0 && prevVal < maxVal);
-
-                                if (isProcced)
-                                {
-                                    float duration = (s == 0 || s == 1 || s == 4) ? 30.0f : (s == 5 ? 15.0f : 4.0f);
-                                    if (timer < 1.0f)
-                                        timer = duration;
-                                }
-                            }
-
-                            bossPostureBarData.statusActiveTimer[s] = timer;
-                            bossPostureBarData.statusIsActive[s] = (timer > 0.0f);
-                            bossPostureBarData.previousResistance[s] = curVal;
-                        }
+                        updateResistanceStatus(rm,
+                            hasPrevious ? previousBossPostureBarData->statusActiveTimer : nullptr,
+                            hasPrevious ? previousBossPostureBarData->previousResistance : nullptr,
+                            dt, bossPostureBarData.statusActiveTimer, bossPostureBarData.statusIsActive, bossPostureBarData.previousResistance);
                     }
 
                     // Check SpEffect linked list
@@ -918,49 +934,20 @@ namespace ER
                 if (StatusIconConfig::drawStatusIcons)
                 {
                     auto* rm = getValidResistanceModule(chrIns->chrModulelBag);
-                    if (rm && isSafeMemory((uintptr_t)rm))
+                    if (rm)
                     {
-                        int curRes[7] = { rm->poison, rm->rot, rm->bleed, rm->blight, rm->frost, rm->sleep, rm->madness };
-                        int maxRes[7] = { rm->poisonMax, rm->rotMax, rm->bleedMax, rm->blightMax, rm->frostMax, rm->sleepMax, rm->madnessMax };
-
+                        bool hasPrevious = previousEntityPostureBarData && previousEntityPostureBarData->entityHandle == entityHandle;
                         float dt = 0.016f;
-                        if (previousEntityPostureBarData && previousEntityPostureBarData->entityHandle == entityHandle)
+                        if (hasPrevious)
                         {
                             dt = std::chrono::duration_cast<std::chrono::duration<float>>(timePoint - previousEntityPostureBarData->lastTimePoint).count();
                             if (dt <= 0.0f || dt > 1.0f) dt = 0.016f;
                         }
 
-                        for (int s = 0; s < 7; s++)
-                        {
-                            float timer = 0.0f;
-                            int prevVal = -1;
-                            if (previousEntityPostureBarData && previousEntityPostureBarData->entityHandle == entityHandle)
-                            {
-                                timer = previousEntityPostureBarData->statusActiveTimer[s] - dt;
-                                if (timer < 0.0f) timer = 0.0f;
-                                prevVal = previousEntityPostureBarData->previousResistance[s];
-                            }
-
-                            int curVal = curRes[s];
-                            int maxVal = maxRes[s];
-
-                            if (maxVal > 0 && maxVal < 50000)
-                            {
-                                bool isProcced = (prevVal >= (int)(maxVal * 0.5f) && curVal <= (int)(maxVal * 0.10f)) ||
-                                                 (curVal >= maxVal && prevVal > 0 && prevVal < maxVal);
-
-                                if (isProcced)
-                                {
-                                    float duration = (s == 0 || s == 1 || s == 4) ? 30.0f : (s == 5 ? 15.0f : 4.0f);
-                                    if (timer < 1.0f)
-                                        timer = duration;
-                                }
-                            }
-
-                            entityPostureBarData.statusActiveTimer[s] = timer;
-                            entityPostureBarData.statusIsActive[s] = (timer > 0.0f);
-                            entityPostureBarData.previousResistance[s] = curVal;
-                        }
+                        updateResistanceStatus(rm,
+                            hasPrevious ? previousEntityPostureBarData->statusActiveTimer : nullptr,
+                            hasPrevious ? previousEntityPostureBarData->previousResistance : nullptr,
+                            dt, entityPostureBarData.statusActiveTimer, entityPostureBarData.statusIsActive, entityPostureBarData.previousResistance);
                     }
 
                     // Check SpEffect linked list
