@@ -4,6 +4,7 @@
 #include "Main/D3DRenderer.hpp"
 #include "Main/Hooking.hpp"
 #include "Main/PostureBarUI.hpp"
+#include "Main/Performance.hpp"
 
 using namespace ER;
 
@@ -275,6 +276,18 @@ bool loadIni()
         //-----------------------------------------------------------------------------------
         Logger::useLogger = ini["Debug"].get("Log") == "true";
         offsetTesting = ini["Debug"].get("OffsetTest") == "true";
+
+        //-----------------------------------------------------------------------------------
+        //                                     Performance
+        //-----------------------------------------------------------------------------------
+        if (ini.has("Performance"))
+        {
+            Performance::frameTimeLog = ini["Performance"].get("FrameTimeLog") == "true";
+            Performance::cacheInputDevices = ini["Performance"].get("CacheInputDevices") == "true";
+            Performance::sequentialFileRead = ini["Performance"].get("SequentialFileRead") == "true";
+            if (ini["Performance"].has("InputDeviceRefreshSeconds"))
+                Performance::inputDeviceRefreshSeconds = safe_stoi(ini["Performance"].get("InputDeviceRefreshSeconds"), 3);
+        }
     }
     catch(const std::exception& e)
     {
@@ -383,6 +396,11 @@ bool loadIni()
     Logger::log("\tDebug:");
     Logger::log("\t\tLog: " + std::to_string(Logger::useLogger));
     Logger::log("\t\tOffsetTest: " + std::to_string(offsetTesting));
+    Logger::log("\tPerformance:");
+    Logger::log("\t\tFrameTimeLog: " + std::to_string(Performance::frameTimeLog));
+    Logger::log("\t\tCacheInputDevices: " + std::to_string(Performance::cacheInputDevices));
+    Logger::log("\t\tInputDeviceRefreshSeconds: " + std::to_string(Performance::inputDeviceRefreshSeconds));
+    Logger::log("\t\tSequentialFileRead: " + std::to_string(Performance::sequentialFileRead));
 
     return true;
 }
@@ -544,6 +562,8 @@ void MainThread()
         Logger::log("Unknown exception during MainThread initialization", LogLevel::Error);
         return;
     }
+
+    Performance::Init();
 
     Logger::log("Starting Main Loop");
     std::pair<float, float> previousMoveVec{1.f, 1.f};

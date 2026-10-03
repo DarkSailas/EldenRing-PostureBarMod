@@ -4,6 +4,7 @@
 #include "Hooking.hpp"
 #include "PostureBarUI.hpp"
 #include "VisualAtmosphereUI.hpp"
+#include "Performance.hpp"
 #include <d3d11.h>
 #include <mutex>
 #define DIRECTINPUT_VERSION 0x0800
@@ -1040,7 +1041,9 @@ namespace ER
         ImGui::EndFrame();
 
         UINT bufferIndex = pSwapChain3->GetCurrentBackBufferIndex();
+#ifdef DEBUGLOG
         { char _dbgBuf[64]; snprintf(_dbgBuf, sizeof(_dbgBuf), "ImGui swap chain buffer index: %u", bufferIndex); Logger::log(_dbgBuf, LogLevel::Debug); }
+#endif
 
         D3D12_RESOURCE_BARRIER barrier = {};
         barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -1192,6 +1195,7 @@ namespace ER
         if (g_D3DRenderer && !(Flags & DXGI_PRESENT_TEST))
         {
             g_D3DRenderer->Overlay(pSwapChain);
+            Performance::OnPresent();
         }
 
         return g_D3DRenderer->oPresent(pSwapChain, SyncInterval, Flags);
