@@ -1,131 +1,199 @@
-# ⚔️ EldenRing-PostureBarMod (Sekiro Edition)
+# EldenRing-PostureBarMod (Sekiro Edition)
 
-![Version](https://img.shields.io/badge/version-0.8.0--sekiro-gold?style=for-the-badge)
-![Platform](https://img.shields.io/badge/platform-Windows%20x64-blue?style=for-the-badge)
-![DirectX](https://img.shields.io/badge/DirectX-12-orange?style=for-the-badge)
-![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-0.8.0--sekiro-blue)
+![Platform](https://img.shields.io/badge/platform-Windows%20x64-lightgrey)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-[English](#english) | [Русский](#russian)
+[English](#english) | [Русский](#русский)
 
----
+## English
 
-<a name="english"></a>
-## ⚔️ English
+A fork of [Mordrog's PostureBarMod](https://github.com/Mordrog/EldenRing-PostureBarMod) for Elden Ring. It draws stagger (posture) bars for bosses and regular enemies in the style of Sekiro: the bar grows from the center and shifts from yellow to red as the enemy gets closer to a stance break.
 
-A high-performance DirectX 12 posture, stagger, and status effect tracking mod for **Elden Ring** (supporting **v1.12+ / Shadow of the Erdtree**, **The Convergence Mod**, and **Seamless Co-op**).
+What this fork adds to the original:
 
-This fork brings authentic **Sekiro: Shadows Die Twice** style posture/stagger meters and circular status effect accumulation gauges directly into the game HUD without crashing or missing targets.
+- Sekiro-style textures and a default config built around them.
+- Status icons above enemies and bosses for Poison, Scarlet Rot, Bleed, Death Blight, Frostbite, Sleep and Madness. An icon lights up when the status triggers: the resistance gauge jumps by 25 % or drops to zero. Simultaneous changes of more than two gauges are treated as a reset and ignored.
+- A settings window for [EldenRing-VisualAtmosphere](https://github.com/DarkSailas/EldenRing-VisualAtmosphere) on F5, shown only when `VisualAtmosphere.dll` is installed.
+- A build with MinGW-w64 instead of Visual Studio.
 
----
+Tested on `eldenring.exe` 2.7.1 with me3 0.13.0, The Convergence and Seamless Co-op. The overlay uses DirectX 12 and ImGui.
 
-### ✨ Key Features
+> [!WARNING]
+> DLL mods do not load with Easy Anti-Cheat running. Play offline with EAC disabled (Mod Engine and me3 do this for you), or use Seamless Co-op.
 
-1. ⚡ **Sekiro Posture & Stagger Meters**:
-   - High-resolution Sekiro-style textures (`SekiroBar.png`, `SekiroBarBorder.png`, `SekiroEntityBarBorder.png`).
-   - Center-outward fill animation with smooth color gradients (bright yellow to critical red).
-   - Accurate entity tracking above enemy heads and beneath boss health bars.
+### Installation
 
-2. 🧪 **Active Status Effect Gauges**:
-   - Live accumulation gauges for all status effects: **Bleed**, **Frostbite**, **Poison**, **Scarlet Rot**, **Sleep**, **Madness**, and **Death Blight**.
-   - Optional circular meters or bar-based status gauges with high-resolution custom status icons.
-   - Smart rendering: hides empty bars to keep screen clutter to a minimum.
+Take everything from the [`release`](release) folder: `PostureBarMod.dll`, `PostureBarModConfig.ini` and the `PostureBarResources` folder. All three must stay next to each other.
 
-3. 🛡️ **Stability & Engine Compatibility**:
-   - Modernized memory offsets for Elden Ring 1.12+ / Shadow of the Erdtree.
-   - Fixed target entity visibility filtering: guaranteed stability without UI crashes or missing target bars.
-   - Thread-safe DX12 command queue synchronization via MinHook.
+**me3**: copy them into the `dll` folder of your mod and add the DLL to the profile:
 
----
+```toml
+[[natives]]
+path = './../mod/dll/PostureBarMod.dll'
+```
 
-### 📦 Installation
+**Mod Engine 2**: add the DLL path to `external_dlls` in `config_eldenring.toml`.
 
-#### Using Mod Engine 2 / Mod Engine 3 (Recommended)
-1. Download the latest release from the `release/` directory or Releases tab.
-2. Copy `PostureBarMod.dll`, `PostureBarModConfig.ini`, and the `PostureBarResources/` folder into your mod DLL directory:
-   - For **The Convergence**: place in `ConvergenceER\mod\dll\`.
-   - For **Mod Engine 2 / 3**: place in `mod\dll\`.
-3. In your `.me3` profile or `config_eldenring.toml`, register the native library:
-   ```toml
-   [[natives]]
-   path = './../mod/dll/PostureBarMod.dll'
-   ```
-4. Launch the game in offline mode with EAC disabled.
+**[Elden Mod Loader](https://www.nexusmods.com/eldenring/mods/117)**: copy them into `ELDEN RING\Game\mods`.
 
-#### Using Elden Mod Loader
-1. Install [Elden Mod Loader](https://www.nexusmods.com/eldenring/mods/117).
-2. Place `PostureBarMod.dll`, `PostureBarModConfig.ini`, and `PostureBarResources/` directly into `ELDEN RING\Game\mods\`.
+### VisualAtmosphere menu
 
----
+If `VisualAtmosphere.dll` is loaded, F5 opens its settings window with presets and sliders. While the window is open, the game receives no keyboard or mouse input: the mod hooks `GetDeviceState` and `GetDeviceData` of DirectInput and returns an empty state. Gamepad input goes through XInput and is not blocked. Without `VisualAtmosphere.dll` the F5 key does nothing visible.
 
-### ⚙️ Configuration (`PostureBarModConfig.ini`)
+### Configuration
 
-| Section | Key | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `[General]` | `AutoPositionSetup` | `true` | Automatically scales UI elements across all screen resolutions |
-| `[Textures]` | `UseTextures` | `true` | Enables high-res custom textures (Sekiro bars & borders) |
-| `[Style]` | `FillAlignment` | `1` | `0` = Left, `1` = Center (Sekiro style), `2` = Right |
-| `[Style]` | `FillType` | `1` | `0` = Full-to-empty, `1` = Empty-to-full |
-| `[StatusBars]` | `EnableStatusBars` | `true` | Enables accumulation status meters for enemies and bosses |
-| `[StatusBars]` | `UseCircleBars` | `true` | Renders circular status meters with dedicated status icons |
+`PostureBarModConfig.ini` is read once at startup. The file in `release` is commented key by key; the table lists the settings people change most often.
 
----
+| Section | Key | Shipped value | Description |
+| --- | --- | --- | --- |
+| `General` | `AutoPositionSetup` | `true` | Detect the screen offset of the game picture automatically. |
+| `General` | `AutoGameToScreenScaling` | `true` | Scale bars to the current resolution automatically. |
+| `Textures` | `UseTextures` | `true` | Draw bars with textures. `false` draws plain rectangles. |
+| `Textures` | `BossBarFillFile`, `BossBarBorderFile`, `EntityBarFillFile`, `EntityBarBorderFile` | `PostureBarResources\Sekiro*.png` | Texture paths relative to the DLL. |
+| `Style` | `FillAlignment` | `1` | 0 left, 1 center, 2 right. |
+| `Style` | `FillType` | `1` | 0 full to empty, 1 empty to full. |
+| `Style` | `FillResizeType` | `1` | 0 clip the fill texture, 1 scale it. |
+| `Style` | `StaggerColorMin`, `StaggerColorMax` | `255,255,0,255`, `255,0,0,255` | RGBA colors at low and high stagger. |
+| `Boss Posture Bar` | `DrawBars` | `true` | Show boss bars. |
+| `Boss Posture Bar` | `BarWidth`, `BarHeight` | `1020`, `12` | Size in 1920x1080 coordinates. |
+| `Boss Posture Bar` | `FirstBossScreenX`, `FirstBossScreenY` | `957.5`, `876.0` | Position of the first boss bar. |
+| `Boss Posture Bar` | `NextBossBarDiffScreenY` | `55` | Vertical step between bars of several bosses. |
+| `Boss Posture Bar` | `DrawPoisonBar` ... `DrawMadnessBar` | `false` | Per-status buildup bars from the original mod. |
+| `Entity Posture Bar` | `DrawBars` | `true` | Show bars over regular enemies. |
+| `Entity Posture Bar` | `OnlyTarget` | `false` | Show the bar only for the locked-on enemy. |
+| `Entity Posture Bar` | `BarWidth`, `BarHeight` | `143`, `8` | Size in 1920x1080 coordinates. |
+| `Entity Posture Bar` | `UsePositionFixing` | `true` | Keep the bar aligned with the enemy health bar using its previous positions. |
+| `Boss Posture Bar`, `Entity Posture Bar` | `UseStaminaForNPC` | `true` | Show stamina instead of stagger for human enemies, which do not use stagger. |
+| `Experimental` | `HideBarsOnMenu` | `false` | Hide bars while a game menu is open. |
+| `Status Icons` | `DrawStatusIcons` | `true` | Show status icons. |
+| `Status Icons` | `EntityIconPosition`, `BossIconPosition` | `top` | Icon placement relative to the bar. |
+| `Status Icons` | `EntityIconSize`, `BossIconSize` | `22.0`, `34.0` | Icon size in pixels at 1080p. |
+| `Status Icons` | `EntityIconOffsetY`, `BossIconOffsetY` | `0.0` | Vertical shift of the icons. |
+| `Debug` | `Log` | `false` | Write a log to `modsPostureModLog.txt`. |
+| `Debug` | `OffsetTest` | `false` | Tune bar offsets in game: PageUp/PageDown select, arrows change, Insert saves. |
 
-### 🛠️ Building from Source
+The original defaults by Mordrog and the presets by Mrj760 are kept in [`Config`](Config), with matching textures in [`Resources`](Resources).
 
-Requires **MinGW-w64** GCC / G++ (v13 or newer) with C++20 support:
-```bash
+### Building
+
+MinGW-w64 with g++ that supports C++20 (WinLibs works). With Python:
+
+```
 python build.py
 ```
-Outputs `PostureBarMod.dll` (static runtime, ~4.4 MB).
 
----
+Without Python, compile every `.cpp` and `.c` file under `Source` and link them:
 
-<a name="russian"></a>
-## ⚔️ Русский
+```
+g++ -std=c++20 -O2 -c <file>.cpp -o build/<name>.o -ISource -ISource/Main -ISource/ImGui -ISource/Minhook -ISource/DirectX -ISource/Ini -ISource/Stb
+gcc -O2 -c <file>.c -o build/<name>.o -ISource -ISource/Minhook
+g++ -shared -static -static-libgcc -static-libstdc++ -O2 -o PostureBarMod.dll build/*.o -ld3d12 -ld3d11 -ldxgi -ld3dcompiler -luser32 -lkernel32 -limm32 -lgdi32 -ldwmapi -ldinput8 -ldxguid
+```
 
-Высокопроизводительный мод на базе DirectX 12 для отображения баланса (стойки), стаггера и статусных эффектов в **Elden Ring** (полная совместимость с **v1.12+ / Shadow of the Erdtree**, **The Convergence Mod** и **Seamless Co-op**).
+The result is one DLL of about 4.4 MB.
 
-Данный форк добавляет полноценные полосы баланса/стойки в стиле **Sekiro: Shadows Die Twice**, круговые шкалы накопления статусных эффектов и надежную синхронизацию с интерфейсом игры без вылетов.
+### Credits
 
----
+- [Mordrog](https://github.com/Mordrog/EldenRing-PostureBarMod): the original PostureBarMod.
+- [Nordgaren](https://github.com/Nordgaren): ERD-Tools.
+- [ImAxel0](https://github.com/ImAxel0): Elden-Menu.
+- [NightFyre](https://github.com/NightFyre): ELDENRING-INTERNAL.
+- Mrj760 and lrbender01: textures and status bars.
+- mahkoh: fix for the D3D12 direct command queue.
 
-### ✨ Основные возможности
+### License
 
-1. ⚡ **Полосы стойки и стаггера в стиле Sekiro**:
-   - Высококачественные текстуры (`SekiroBar.png`, `SekiroBarBorder.png`, `SekiroEntityBarBorder.png`).
-   - Заполнение из центра наружу с плавным цветовым градиентом от желтого к критическому красному.
-   - Точное позиционирование над головами рядовых врагов и под шкалой здоровья боссов.
+MIT, see [LICENSE](LICENSE). Not affiliated with FromSoftware or Bandai Namco.
 
-2. 🧪 **Шкалы статусного накопления**:
-   - Отображение шкал для всех статусов: **Кровотечение**, **Обморожение**, **Яд**, **Красная гниль**, **Сон**, **Безумие** и **Смерть**.
-   - Круговые индикаторы с фирменными иконками статусов.
-   - Скрытие неактивных полос для чистоты экрана в бою.
+## Русский
 
-3. 🛡️ **Надежность и поддержка DLC 1.12+**:
-   - Актуальные оффсеты структур `WorldChrMan` и `ChrIns` для версий 1.12+.
-   - Исправлена фильтрация целей: полосы не пропадают при захвате цели, нет вылетов DirectX 12.
-   - Безопасное перехватывание очередей команд DX12 через MinHook.
+Форк [PostureBarMod от Mordrog](https://github.com/Mordrog/EldenRing-PostureBarMod) для Elden Ring. Рисует шкалы стойки (оглушения) у боссов и обычных врагов в стиле Sekiro: шкала растёт от центра и переходит от жёлтого к красному по мере того, как враг приближается к срыву стойки.
 
----
+Что добавлено к оригиналу:
 
-### 📦 Установка
+- Текстуры в стиле Sekiro и конфиг по умолчанию под них.
+- Иконки статусов над врагами и боссами: яд, алая гниль, кровотечение, смертельная порча, обморожение, сон, безумие. Иконка загорается, когда статус сработал: шкала сопротивления прыгнула на 25 % или упала до нуля. Одновременное изменение больше двух шкал считается сбросом и не учитывается.
+- Окно настроек [EldenRing-VisualAtmosphere](https://github.com/DarkSailas/EldenRing-VisualAtmosphere) по F5 — появляется, только если установлен `VisualAtmosphere.dll`.
+- Сборка через MinGW-w64 вместо Visual Studio.
 
-1. Скопируйте `PostureBarMod.dll`, `PostureBarModConfig.ini` и папку `PostureBarResources/` в каталог DLL модов:
-   - Для **ConvergenceER**: `ConvergenceER\mod\dll\`
-   - Для **Mod Engine 2 / 3**: `mod\dll\`
-2. В файле профиля `.me3` или `config_eldenring.toml` подключите DLL:
-   ```toml
-   [[natives]]
-   path = './../mod/dll/PostureBarMod.dll'
-   ```
-3. Запустите игру в оффлайн-режиме с отключенным EAC.
+Проверено на `eldenring.exe` 2.7.1 с me3 0.13.0, The Convergence и Seamless Co-op. Оверлей работает через DirectX 12 и ImGui.
 
----
+> [!WARNING]
+> С включённым Easy Anti-Cheat DLL-моды не загружаются. Играйте офлайн с отключённым EAC (Mod Engine и me3 делают это сами) или через Seamless Co-op.
 
-### 👥 Благодарности и авторы оригинала
+### Установка
 
-- **[Mordrog](https://github.com/Mordrog/EldenRing-PostureBarMod)** — создатель оригинального PostureBarMod.
-- **[Nordgaren](https://github.com/Nordgaren)** (ERD-Tools) и **[ImAxel0](https://github.com/ImAxel0)** (Elden-Menu).
-- **[NightFyre](https://github.com/NightFyre)** (ELDENRING-INTERNAL).
-- **Mrj760** & **lrbender01** за текстуры и реализацию шкал статусов.
-- **mahkoh** за фикс очередей команд прямого типа D3D12.
+Возьмите всё из папки [`release`](release): `PostureBarMod.dll`, `PostureBarModConfig.ini` и папку `PostureBarResources`. Все три должны лежать рядом.
+
+**me3**: скопируйте их в папку `dll` мода и добавьте DLL в профиль:
+
+```toml
+[[natives]]
+path = './../mod/dll/PostureBarMod.dll'
+```
+
+**Mod Engine 2**: добавьте путь к DLL в `external_dlls` в `config_eldenring.toml`.
+
+**[Elden Mod Loader](https://www.nexusmods.com/eldenring/mods/117)**: скопируйте их в `ELDEN RING\Game\mods`.
+
+### Меню VisualAtmosphere
+
+Если загружен `VisualAtmosphere.dll`, F5 открывает его окно настроек с пресетами и ползунками. Пока окно открыто, игра не получает ввод с клавиатуры и мыши: мод перехватывает `GetDeviceState` и `GetDeviceData` в DirectInput и отдаёт пустое состояние. Геймпад идёт через XInput и не блокируется. Без `VisualAtmosphere.dll` клавиша F5 ничего не показывает.
+
+### Настройка
+
+`PostureBarModConfig.ini` читается один раз при запуске. В файле из `release` каждый ключ прокомментирован; в таблице — то, что меняют чаще всего.
+
+| Раздел | Ключ | В поставке | Описание |
+| --- | --- | --- | --- |
+| `General` | `AutoPositionSetup` | `true` | Определять смещение картинки игры на экране автоматически. |
+| `General` | `AutoGameToScreenScaling` | `true` | Автоматически масштабировать шкалы под текущее разрешение. |
+| `Textures` | `UseTextures` | `true` | Рисовать шкалы текстурами. `false` — простые прямоугольники. |
+| `Textures` | `BossBarFillFile`, `BossBarBorderFile`, `EntityBarFillFile`, `EntityBarBorderFile` | `PostureBarResources\Sekiro*.png` | Пути к текстурам относительно DLL. |
+| `Style` | `FillAlignment` | `1` | 0 слева, 1 от центра, 2 справа. |
+| `Style` | `FillType` | `1` | 0 от полной к пустой, 1 от пустой к полной. |
+| `Style` | `FillResizeType` | `1` | 0 обрезать текстуру заполнения, 1 растягивать. |
+| `Style` | `StaggerColorMin`, `StaggerColorMax` | `255,255,0,255`, `255,0,0,255` | Цвета RGBA при низком и высоком уровне оглушения. |
+| `Boss Posture Bar` | `DrawBars` | `true` | Показывать шкалы боссов. |
+| `Boss Posture Bar` | `BarWidth`, `BarHeight` | `1020`, `12` | Размер в координатах 1920x1080. |
+| `Boss Posture Bar` | `FirstBossScreenX`, `FirstBossScreenY` | `957.5`, `876.0` | Положение шкалы первого босса. |
+| `Boss Posture Bar` | `NextBossBarDiffScreenY` | `55` | Шаг по вертикали между шкалами нескольких боссов. |
+| `Boss Posture Bar` | `DrawPoisonBar` ... `DrawMadnessBar` | `false` | Шкалы накопления статусов из оригинального мода. |
+| `Entity Posture Bar` | `DrawBars` | `true` | Показывать шкалы над обычными врагами. |
+| `Entity Posture Bar` | `OnlyTarget` | `false` | Показывать шкалу только у врага в прицеле. |
+| `Entity Posture Bar` | `BarWidth`, `BarHeight` | `143`, `8` | Размер в координатах 1920x1080. |
+| `Entity Posture Bar` | `UsePositionFixing` | `true` | Выравнивать шкалу по полосе здоровья врага с учётом её прошлых положений. |
+| `Boss Posture Bar`, `Entity Posture Bar` | `UseStaminaForNPC` | `true` | Показывать выносливость вместо оглушения у людей-противников: оглушение у них не используется. |
+| `Experimental` | `HideBarsOnMenu` | `false` | Прятать шкалы, пока открыто меню игры. |
+| `Status Icons` | `DrawStatusIcons` | `true` | Показывать иконки статусов. |
+| `Status Icons` | `EntityIconPosition`, `BossIconPosition` | `top` | Положение иконок относительно шкалы. |
+| `Status Icons` | `EntityIconSize`, `BossIconSize` | `22.0`, `34.0` | Размер иконок в пикселях при 1080p. |
+| `Status Icons` | `EntityIconOffsetY`, `BossIconOffsetY` | `0.0` | Сдвиг иконок по вертикали. |
+| `Debug` | `Log` | `false` | Писать лог в `modsPostureModLog.txt`. |
+| `Debug` | `OffsetTest` | `false` | Подбор смещений шкал в игре: PageUp/PageDown выбирают, стрелки меняют, Insert сохраняет. |
+
+Исходные настройки Mordrog и пресеты Mrj760 лежат в [`Config`](Config), текстуры к ним — в [`Resources`](Resources).
+
+### Сборка
+
+Нужен MinGW-w64 с g++ и поддержкой C++20 (подойдёт WinLibs). С Python:
+
+```
+python build.py
+```
+
+Без Python — скомпилируйте каждый `.cpp` и `.c` из `Source` и слинкуйте командами из английского раздела «Building». Получается одна DLL около 4,4 МБ.
+
+### Благодарности
+
+- [Mordrog](https://github.com/Mordrog/EldenRing-PostureBarMod) — оригинальный PostureBarMod.
+- [Nordgaren](https://github.com/Nordgaren) — ERD-Tools.
+- [ImAxel0](https://github.com/ImAxel0) — Elden-Menu.
+- [NightFyre](https://github.com/NightFyre) — ELDENRING-INTERNAL.
+- Mrj760 и lrbender01 — текстуры и шкалы статусов.
+- mahkoh — исправление для прямой очереди команд D3D12.
+
+### Лицензия
+
+MIT, см. [LICENSE](LICENSE). Проект не связан с FromSoftware и Bandai Namco.
