@@ -28,6 +28,12 @@ static void EnsureVALoaded()
     }
 }
 
+bool IsVisualAtmosphereAvailable()
+{
+    EnsureVALoaded();
+    return g_VAFunctionsLoaded;
+}
+
 void DrawVisualAtmosphereMenu()
 {
     EnsureVALoaded();

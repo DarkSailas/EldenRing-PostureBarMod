@@ -39,7 +39,7 @@ path = './../mod/dll/PostureBarMod.dll'
 
 ### VisualAtmosphere menu
 
-If `VisualAtmosphere.dll` is loaded, F5 opens its settings window with presets and sliders. While the window is open, the game receives no keyboard or mouse input: the mod hooks `GetDeviceState` and `GetDeviceData` of DirectInput and returns an empty state. Gamepad input goes through XInput and is not blocked. Without `VisualAtmosphere.dll` the F5 key does nothing visible.
+If `VisualAtmosphere.dll` is loaded, F5 opens its settings window with presets and sliders. While the window is open, the game receives no keyboard or mouse input: the mod hooks `GetDeviceState` and `GetDeviceData` of DirectInput and returns an empty state. Gamepad input goes through XInput and is not blocked. Without `VisualAtmosphere.dll` the mod ignores F5 and input is never blocked.
 
 ### Configuration
 
@@ -139,7 +139,7 @@ path = './../mod/dll/PostureBarMod.dll'
 
 ### Меню VisualAtmosphere
 
-Если загружен `VisualAtmosphere.dll`, F5 открывает его окно настроек с пресетами и ползунками. Пока окно открыто, игра не получает ввод с клавиатуры и мыши: мод перехватывает `GetDeviceState` и `GetDeviceData` в DirectInput и отдаёт пустое состояние. Геймпад идёт через XInput и не блокируется. Без `VisualAtmosphere.dll` клавиша F5 ничего не показывает.
+Если загружен `VisualAtmosphere.dll`, F5 открывает его окно настроек с пресетами и ползунками. Пока окно открыто, игра не получает ввод с клавиатуры и мыши: мод перехватывает `GetDeviceState` и `GetDeviceData` в DirectInput и отдаёт пустое состояние. Геймпад идёт через XInput и не блокируется. Без `VisualAtmosphere.dll` мод не реагирует на F5 и ввод не блокирует.
 
 ### Настройка
 

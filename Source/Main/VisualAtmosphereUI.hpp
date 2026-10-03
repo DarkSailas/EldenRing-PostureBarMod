@@ -36,4 +36,5 @@ namespace VA
 }
 
 extern bool g_ShowVAMenu;
+bool IsVisualAtmosphereAvailable();
 void DrawVisualAtmosphereMenu();

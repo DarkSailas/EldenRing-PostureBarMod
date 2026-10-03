@@ -1090,8 +1090,9 @@ namespace ER
 
     LRESULT D3DRenderer::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
-        // 1. Hotkey F5 to toggle VisualAtmosphere menu
-        if (msg == WM_KEYDOWN && wParam == VK_F5)
+        // 1. Hotkey F5 to toggle VisualAtmosphere menu (only when VisualAtmosphere.dll is present,
+        //    otherwise the input block would engage with no menu on screen)
+        if (msg == WM_KEYDOWN && wParam == VK_F5 && (g_ShowVAMenu || IsVisualAtmosphereAvailable()))
         {
             g_ShowVAMenu = !g_ShowVAMenu;
             if (ImGui::GetCurrentContext())
