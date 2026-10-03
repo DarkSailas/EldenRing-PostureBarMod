@@ -66,7 +66,7 @@ if errors > 0:
     sys.exit(1)
 
 print("\nLinking PostureBarMod.dll...")
-libs = "-ld3d12 -ld3d11 -ldxgi -ld3dcompiler -luser32 -lkernel32 -limm32 -lgdi32 -ldwmapi"
+libs = "-ld3d12 -ld3d11 -ldxgi -ld3dcompiler -luser32 -lkernel32 -limm32 -lgdi32 -ldwmapi -ldinput8 -ldxguid"
 obj_args = " ".join([f'"{f}"' for f in obj_files])
 link_cmd = f'g++ -shared -static -static-libgcc -static-libstdc++ -O2 -o "{OUT_DLL}" {obj_args} {libs}'
 res = subprocess.run(link_cmd, shell=True, capture_output=True, text=True)

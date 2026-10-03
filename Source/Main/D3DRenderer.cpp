@@ -6,6 +6,8 @@
 #include "VisualAtmosphereUI.hpp"
 #include <d3d11.h>
 #include <mutex>
+#define DIRECTINPUT_VERSION 0x0800
+#include <dinput.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "../Stb/stb_image.h"
@@ -59,6 +61,71 @@ static BOOL WINAPI Hooked_ClipCursor(const RECT* lpRect)
     return oClipCursor ? oClipCursor(lpRect) : ClipCursor(lpRect);
 }
 
+// -------------------------------------------------------------
+// DirectInput hooks: Elden Ring reads keyboard and mouse through DINPUT8,
+// not window messages, so the game keeps getting input unless it is cut here
+// -------------------------------------------------------------
+typedef HRESULT (WINAPI *FnGetDeviceState)(IDirectInputDevice8W* self, DWORD cbData, LPVOID lpvData);
+static FnGetDeviceState oGetDeviceState = nullptr;
+
+typedef HRESULT (WINAPI *FnGetDeviceData)(IDirectInputDevice8W* self, DWORD cbObjectData, LPDIDEVICEOBJECTDATA rgdod, LPDWORD pdwInOut, DWORD dwFlags);
+static FnGetDeviceData oGetDeviceData = nullptr;
+
+static HRESULT WINAPI Hooked_GetDeviceState(IDirectInputDevice8W* self, DWORD cbData, LPVOID lpvData)
+{
+    HRESULT hr = oGetDeviceState(self, cbData, lpvData);
+    if (g_ShowVAMenu && SUCCEEDED(hr) && lpvData)
+    {
+        memset(lpvData, 0, cbData); // No keys held, no mouse movement while menu is open
+    }
+    return hr;
+}
+
+static HRESULT WINAPI Hooked_GetDeviceData(IDirectInputDevice8W* self, DWORD cbObjectData, LPDIDEVICEOBJECTDATA rgdod, LPDWORD pdwInOut, DWORD dwFlags)
+{
+    HRESULT hr = oGetDeviceData(self, cbObjectData, rgdod, pdwInOut, dwFlags);
+    if (g_ShowVAMenu && SUCCEEDED(hr) && pdwInOut)
+    {
+        *pdwInOut = 0; // Buffer is drained by the original call, events are dropped
+    }
+    return hr;
+}
+
+static void InstallDirectInputHooks()
+{
+    IDirectInput8W* pDI = nullptr;
+    if (FAILED(DirectInput8Create(GetModuleHandleW(NULL), DIRECTINPUT_VERSION, IID_IDirectInput8W, (void**)&pDI, NULL)) || !pDI)
+    {
+        ER::Logger::log("DirectInput8Create failed, game input is not blocked while VA menu is open", ER::LogLevel::Warning);
+        return;
+    }
+
+    // Keyboard and mouse devices share one implementation, a temporary device is enough to get its addresses
+    IDirectInputDevice8W* pDevice = nullptr;
+    if (SUCCEEDED(pDI->CreateDevice(GUID_SysKeyboard, &pDevice, NULL)) && pDevice)
+    {
+        void** vtable = *(void***)pDevice;
+        void* pGetDeviceState = vtable[9];
+        void* pGetDeviceData = vtable[10];
+
+        if (MH_CreateHook(pGetDeviceState, (void*)&Hooked_GetDeviceState, (void**)&oGetDeviceState) == MH_OK)
+        {
+            MH_EnableHook(pGetDeviceState);
+        }
+        if (MH_CreateHook(pGetDeviceData, (void*)&Hooked_GetDeviceData, (void**)&oGetDeviceData) == MH_OK)
+        {
+            MH_EnableHook(pGetDeviceData);
+        }
+        ER::Logger::log(std::string("DirectInput hooks: GetDeviceState ") + (oGetDeviceState ? "ok" : "failed") + ", GetDeviceData " + (oGetDeviceData ? "ok" : "failed"));
+        pDevice->Release();
+    }
+    else
+    {
+        ER::Logger::log("DirectInput keyboard device not created, game input is not blocked while VA menu is open", ER::LogLevel::Warning);
+    }
+    pDI->Release();
+}
+
 static void InstallCursorHooks()
 {
     static bool s_Installed = false;
@@ -88,6 +155,8 @@ static void InstallCursorHooks()
             MH_EnableHook(pClipCursor);
         }
     }
+
+    InstallDirectInputHooks();
 }
 
 namespace ER 
