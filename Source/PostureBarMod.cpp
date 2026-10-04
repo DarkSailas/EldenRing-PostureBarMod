@@ -4,6 +4,7 @@
 #include "Main/D3DRenderer.hpp"
 #include "Main/Hooking.hpp"
 #include "Main/PostureBarUI.hpp"
+#include "Main/GameplayGate.hpp"
 #include "Main/Performance.hpp"
 
 using namespace ER;
@@ -232,6 +233,9 @@ bool loadIni()
         //                                        Experimental
         //-----------------------------------------------------------------------------------
         hideBarsOnMenu = ini["Experimental"].get("HideBarsOnMenu") == "true";
+        // On unless switched off, so a config written for an older version hides the bars too
+        GameplayGate::hideInMenus = ini["Experimental"].get("HideInMenus") != "false";
+        GameplayGate::hideOnLoadingScreens = ini["Experimental"].get("HideOnLoadingScreens") != "false";
         PlayerPostureBarData::drawBar = ini["Experimental"].get("DrawBar") == "true";
         PlayerPostureBarData::barWidth = safe_stof(ini["Experimental"].get("BarWidth"));
         PlayerPostureBarData::barHeight = safe_stof(ini["Experimental"].get("BarHeight"));
@@ -387,6 +391,8 @@ bool loadIni()
     Logger::log("\t\tNextStatusBarDiffScreenY: " + std::to_string(EntityPostureBarData::nextStatusBarDiffScreenY));
     Logger::log("\tExperimental:");
     Logger::log("\t\tHideBarsOnMenu: " + std::to_string(hideBarsOnMenu));
+    Logger::log("\t\tHideInMenus: " + std::to_string(GameplayGate::hideInMenus));
+    Logger::log("\t\tHideOnLoadingScreens: " + std::to_string(GameplayGate::hideOnLoadingScreens));
     Logger::log("\t\tDrawBar: " + std::to_string(PlayerPostureBarData::drawBar));
     Logger::log("\t\tBarWidth: " + std::to_string(PlayerPostureBarData::barWidth));
     Logger::log("\t\tBarHeight: " + std::to_string(PlayerPostureBarData::barHeight));

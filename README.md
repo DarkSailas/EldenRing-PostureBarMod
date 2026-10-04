@@ -1,6 +1,6 @@
 # EldenRing-PostureBarMod (Sekiro Edition)
 
-![Version](https://img.shields.io/badge/version-0.9.0--sekiro-blue)
+![Version](https://img.shields.io/badge/version-0.9.1--sekiro-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%20x64-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -72,6 +72,8 @@ The `[Performance]` section of the config holds three independent switches. None
 | `Entity Posture Bar` | `UsePositionFixing` | `true` | Keep the bar aligned with the enemy health bar using its previous positions. |
 | `Boss Posture Bar`, `Entity Posture Bar` | `UseStaminaForNPC` | `true` | Show stamina instead of stagger for human enemies, which do not use stagger. |
 | `Experimental` | `HideBarsOnMenu` | `false` | Hide bars while a game menu is open. |
+| `Experimental` | `HideInMenus` | `true` | No bars while the pause menu, the inventory, a shop, a dialogue or the map is open. |
+| `Experimental` | `HideOnLoadingScreens` | `true` | No bars at launch, on the title screen, on loading screens and while the screen is faded out. |
 | `Status Icons` | `DrawStatusIcons` | `true` | Show status icons. |
 | `Status Icons` | `EntityIconPosition`, `BossIconPosition` | `top` | Icon placement relative to the bar. |
 | `Status Icons` | `EntityIconSize`, `BossIconSize` | `22.0`, `34.0` | Icon size in pixels at 1080p. |
@@ -182,6 +184,8 @@ path = './../mod/dll/PostureBarMod.dll'
 | `Entity Posture Bar` | `UsePositionFixing` | `true` | Выравнивать шкалу по полосе здоровья врага с учётом её прошлых положений. |
 | `Boss Posture Bar`, `Entity Posture Bar` | `UseStaminaForNPC` | `true` | Показывать выносливость вместо оглушения у людей-противников: оглушение у них не используется. |
 | `Experimental` | `HideBarsOnMenu` | `false` | Прятать шкалы, пока открыто меню игры. |
+| `Experimental` | `HideInMenus` | `true` | Не рисовать шкалы, пока открыто меню паузы, инвентарь, магазин, диалог или карта. |
+| `Experimental` | `HideOnLoadingScreens` | `true` | Не рисовать шкалы при запуске, на заставке, на экранах загрузки и пока экран затемнён. |
 | `Status Icons` | `DrawStatusIcons` | `true` | Показывать иконки статусов. |
 | `Status Icons` | `EntityIconPosition`, `BossIconPosition` | `top` | Положение иконок относительно шкалы. |
 | `Status Icons` | `EntityIconSize`, `BossIconSize` | `22.0`, `34.0` | Размер иконок в пикселях при 1080p. |

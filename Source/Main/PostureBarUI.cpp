@@ -2,6 +2,7 @@
 #include "Logger.hpp"
 #include "Hooking.hpp"
 #include "D3DRenderer.hpp"
+#include "GameplayGate.hpp"
 #include "../PostureBarMod.hpp"
 #include <algorithm>
 
@@ -105,7 +106,10 @@ namespace ER
             Logger::log("Menu is open - not rendering bars", LogLevel::Debug);
             return;
         }
-        
+
+        if (!GameplayGate::visible())
+            return;
+
         if (PlayerPostureBarData::drawBar)
         {
             if (auto _playerPostureBar = playerPostureBar; _playerPostureBar)
