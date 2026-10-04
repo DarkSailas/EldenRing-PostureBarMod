@@ -3,162 +3,14 @@
 #include "Logger.hpp"
 #include "Hooking.hpp"
 #include "PostureBarUI.hpp"
-#include "VisualAtmosphereUI.hpp"
 #include "Performance.hpp"
 #include <d3d11.h>
 #include <mutex>
-#define DIRECTINPUT_VERSION 0x0800
-#include <dinput.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "../Stb/stb_image.h"
 
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
-// -------------------------------------------------------------
-// Safe User32 Hooks to release cursor when VisualAtmosphere menu is open
-// -------------------------------------------------------------
-typedef BOOL (WINAPI *FnSetCursorPos)(int X, int Y);
-static FnSetCursorPos oSetCursorPos = nullptr;
-
-typedef BOOL (WINAPI *FnGetCursorPos)(LPPOINT lpPoint);
-static FnGetCursorPos oGetCursorPos = nullptr;
-
-static POINT s_SavedCenter = { 0, 0 };
-
-static BOOL WINAPI Hooked_SetCursorPos(int X, int Y)
-{
-    if (g_ShowVAMenu)
-    {
-        s_SavedCenter.x = X;
-        s_SavedCenter.y = Y;
-        return TRUE; // Stop Elden Ring from pinning mouse to center while menu is open
-    }
-    return oSetCursorPos ? oSetCursorPos(X, Y) : SetCursorPos(X, Y);
-}
-
-static BOOL WINAPI Hooked_GetCursorPos(LPPOINT lpPoint)
-{
-    if (g_ShowVAMenu && lpPoint)
-    {
-        if (s_SavedCenter.x != 0 || s_SavedCenter.y != 0)
-        {
-            *lpPoint = s_SavedCenter;
-            return TRUE;
-        }
-    }
-    return oGetCursorPos ? oGetCursorPos(lpPoint) : GetCursorPos(lpPoint);
-}
-
-typedef BOOL (WINAPI *FnClipCursor)(const RECT* lpRect);
-static FnClipCursor oClipCursor = nullptr;
-
-static BOOL WINAPI Hooked_ClipCursor(const RECT* lpRect)
-{
-    if (g_ShowVAMenu)
-    {
-        return TRUE; // Stop Elden Ring from confining mouse while menu is open
-    }
-    return oClipCursor ? oClipCursor(lpRect) : ClipCursor(lpRect);
-}
-
-// -------------------------------------------------------------
-// DirectInput hooks: Elden Ring reads keyboard and mouse through DINPUT8,
-// not window messages, so the game keeps getting input unless it is cut here
-// -------------------------------------------------------------
-typedef HRESULT (WINAPI *FnGetDeviceState)(IDirectInputDevice8W* self, DWORD cbData, LPVOID lpvData);
-static FnGetDeviceState oGetDeviceState = nullptr;
-
-typedef HRESULT (WINAPI *FnGetDeviceData)(IDirectInputDevice8W* self, DWORD cbObjectData, LPDIDEVICEOBJECTDATA rgdod, LPDWORD pdwInOut, DWORD dwFlags);
-static FnGetDeviceData oGetDeviceData = nullptr;
-
-static HRESULT WINAPI Hooked_GetDeviceState(IDirectInputDevice8W* self, DWORD cbData, LPVOID lpvData)
-{
-    HRESULT hr = oGetDeviceState(self, cbData, lpvData);
-    if (g_ShowVAMenu && SUCCEEDED(hr) && lpvData)
-    {
-        memset(lpvData, 0, cbData); // No keys held, no mouse movement while menu is open
-    }
-    return hr;
-}
-
-static HRESULT WINAPI Hooked_GetDeviceData(IDirectInputDevice8W* self, DWORD cbObjectData, LPDIDEVICEOBJECTDATA rgdod, LPDWORD pdwInOut, DWORD dwFlags)
-{
-    HRESULT hr = oGetDeviceData(self, cbObjectData, rgdod, pdwInOut, dwFlags);
-    if (g_ShowVAMenu && SUCCEEDED(hr) && pdwInOut)
-    {
-        *pdwInOut = 0; // Buffer is drained by the original call, events are dropped
-    }
-    return hr;
-}
-
-static void InstallDirectInputHooks()
-{
-    IDirectInput8W* pDI = nullptr;
-    if (FAILED(DirectInput8Create(GetModuleHandleW(NULL), DIRECTINPUT_VERSION, IID_IDirectInput8W, (void**)&pDI, NULL)) || !pDI)
-    {
-        ER::Logger::log("DirectInput8Create failed, game input is not blocked while VA menu is open", ER::LogLevel::Warning);
-        return;
-    }
-
-    // Keyboard and mouse devices share one implementation, a temporary device is enough to get its addresses
-    IDirectInputDevice8W* pDevice = nullptr;
-    if (SUCCEEDED(pDI->CreateDevice(GUID_SysKeyboard, &pDevice, NULL)) && pDevice)
-    {
-        void** vtable = *(void***)pDevice;
-        void* pGetDeviceState = vtable[9];
-        void* pGetDeviceData = vtable[10];
-
-        if (MH_CreateHook(pGetDeviceState, (void*)&Hooked_GetDeviceState, (void**)&oGetDeviceState) == MH_OK)
-        {
-            MH_EnableHook(pGetDeviceState);
-        }
-        if (MH_CreateHook(pGetDeviceData, (void*)&Hooked_GetDeviceData, (void**)&oGetDeviceData) == MH_OK)
-        {
-            MH_EnableHook(pGetDeviceData);
-        }
-        ER::Logger::log(std::string("DirectInput hooks: GetDeviceState ") + (oGetDeviceState ? "ok" : "failed") + ", GetDeviceData " + (oGetDeviceData ? "ok" : "failed"));
-        pDevice->Release();
-    }
-    else
-    {
-        ER::Logger::log("DirectInput keyboard device not created, game input is not blocked while VA menu is open", ER::LogLevel::Warning);
-    }
-    pDI->Release();
-}
-
-static void InstallCursorHooks()
-{
-    static bool s_Installed = false;
-    if (s_Installed) return;
-    s_Installed = true;
-
-    HMODULE hUser32 = GetModuleHandleA("user32.dll");
-    if (hUser32)
-    {
-        void* pSetCursorPos = (void*)GetProcAddress(hUser32, "SetCursorPos");
-        void* pGetCursorPos = (void*)GetProcAddress(hUser32, "GetCursorPos");
-        void* pClipCursor = (void*)GetProcAddress(hUser32, "ClipCursor");
-
-        if (pSetCursorPos)
-        {
-            MH_CreateHook(pSetCursorPos, (void*)&Hooked_SetCursorPos, (void**)&oSetCursorPos);
-            MH_EnableHook(pSetCursorPos);
-        }
-        if (pGetCursorPos)
-        {
-            MH_CreateHook(pGetCursorPos, (void*)&Hooked_GetCursorPos, (void**)&oGetCursorPos);
-            MH_EnableHook(pGetCursorPos);
-        }
-        if (pClipCursor)
-        {
-            MH_CreateHook(pClipCursor, (void*)&Hooked_ClipCursor, (void**)&oClipCursor);
-            MH_EnableHook(pClipCursor);
-        }
-    }
-
-    InstallDirectInputHooks();
-}
 
 namespace ER 
 {
@@ -344,7 +196,6 @@ namespace ER
             CreateHook(54, (void**)&oExecuteCommandLists, (void*)HookExecuteCommandLists);
             Logger::log("Hooking Present");
             CreateHook(140, (void**)&oPresent, (void*)HookPresent);
-            InstallCursorHooks();
             return 1;
         }
 
@@ -1007,35 +858,10 @@ namespace ER
         ImGui_ImplDX12_NewFrame();
         ImGui_ImplWin32_NewFrame();
 
-        if (g_ShowVAMenu && g_D3DRenderer && g_D3DRenderer->programData && g_D3DRenderer->programData->m_GameWindow)
-        {
-            // Release any cursor confinement the game may re-apply between frames
-            ClipCursor(NULL);
-
-            POINT pt;
-            BOOL gotPos = oGetCursorPos ? oGetCursorPos(&pt) : GetCursorPos(&pt);
-            if (gotPos && ScreenToClient(g_D3DRenderer->programData->m_GameWindow, &pt))
-            {
-                ImGuiIO& io = ImGui::GetIO();
-                io.MousePos = ImVec2((float)pt.x, (float)pt.y);
-                // Feed mouse button states directly — Elden Ring uses Raw Input,
-                // so WM_LBUTTONDOWN may never fire. This is a direct API call, NOT a hook.
-                io.MouseDown[0] = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
-                io.MouseDown[1] = (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
-                io.MouseDown[2] = (GetAsyncKeyState(VK_MBUTTON) & 0x8000) != 0;
-            }
-        }
-
         ImGui::NewFrame();
 
         Logger::log("Draw posture bar UI", LogLevel::Debug);
         g_postureUI->Draw();
-
-        // Draw stylish VisualAtmosphere settings menu
-        if (g_ShowVAMenu)
-        {
-            DrawVisualAtmosphereMenu();
-        }
 
         Logger::log("ImGui end frame", LogLevel::Debug);
         ImGui::EndFrame();
@@ -1093,80 +919,9 @@ namespace ER
 
     LRESULT D3DRenderer::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
-        // 1. Hotkey F5 to toggle VisualAtmosphere menu (only when VisualAtmosphere.dll is present,
-        //    otherwise the input block would engage with no menu on screen)
-        if (msg == WM_KEYDOWN && wParam == VK_F5 && (g_ShowVAMenu || IsVisualAtmosphereAvailable()))
+        if (ImGui::GetCurrentContext())
         {
-            g_ShowVAMenu = !g_ShowVAMenu;
-            if (ImGui::GetCurrentContext())
-            {
-                ImGui::GetIO().MouseDrawCursor = g_ShowVAMenu;
-            }
-            if (g_ShowVAMenu)
-            {
-                ClipCursor(NULL);
-                ReleaseCapture();
-                while (ShowCursor(TRUE) < 0);
-            }
-            else
-            {
-                while (ShowCursor(FALSE) >= 0);
-            }
-            return 0;
-        }
-
-        // 2. If menu is open:
-        if (g_ShowVAMenu)
-        {
-            if (msg == WM_KEYDOWN && wParam == VK_ESCAPE)
-            {
-                g_ShowVAMenu = false;
-                if (ImGui::GetCurrentContext())
-                {
-                    ImGui::GetIO().MouseDrawCursor = false;
-                }
-                while (ShowCursor(FALSE) >= 0);
-                return 0;
-            }
-
-            if (ImGui::GetCurrentContext())
-            {
-                ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam);
-            }
-
-            // Block clicks, raw mouse input and keyboard inputs from reaching the game character
-            switch (msg)
-            {
-            case WM_INPUT:
-            case WM_MOUSEMOVE:
-            case WM_LBUTTONDOWN:
-            case WM_LBUTTONUP:
-            case WM_LBUTTONDBLCLK:
-            case WM_RBUTTONDOWN:
-            case WM_RBUTTONUP:
-            case WM_RBUTTONDBLCLK:
-            case WM_MBUTTONDOWN:
-            case WM_MBUTTONUP:
-            case WM_MBUTTONDBLCLK:
-            case WM_MOUSEWHEEL:
-            case WM_MOUSEHWHEEL:
-            case WM_KEYDOWN:
-            case WM_KEYUP:
-            case WM_SYSKEYDOWN:
-            case WM_SYSKEYUP:
-            case WM_CHAR:
-                return 0;
-
-            case WM_SETCURSOR:
-                return 1;
-            }
-        }
-        else
-        {
-            if (ImGui::GetCurrentContext())
-            {
-                ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam);
-            }
+            ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam);
         }
 
         if (g_D3DRenderer && g_D3DRenderer->m_OldWndProc)

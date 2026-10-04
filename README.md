@@ -14,7 +14,6 @@ What this fork adds to the original:
 
 - Sekiro-style textures and a default config built around them.
 - Status icons above enemies and bosses for Poison, Scarlet Rot, Bleed, Death Blight, Frostbite, Sleep and Madness. An icon lights up when the status triggers: the resistance gauge jumps by 25 % or drops to zero. Simultaneous changes of more than two gauges are treated as a reset and ignored.
-- A settings window for [EldenRing-VisualAtmosphere](https://github.com/DarkSailas/EldenRing-VisualAtmosphere) on F5, shown only when `VisualAtmosphere.dll` is installed.
 - Optional performance tools, all off by default: a frame time log, a cache for DirectInput device enumeration and a sequential read hint for game archives. See [Performance tools](#performance-tools).
 - A build with MinGW-w64 instead of Visual Studio.
 
@@ -37,10 +36,6 @@ path = './../mod/dll/PostureBarMod.dll'
 **Mod Engine 2**: add the DLL path to `external_dlls` in `config_eldenring.toml`.
 
 **[Elden Mod Loader](https://www.nexusmods.com/eldenring/mods/117)**: copy them into `ELDEN RING\Game\mods`.
-
-### VisualAtmosphere menu
-
-If `VisualAtmosphere.dll` is loaded, F5 opens its settings window with presets and sliders. While the window is open, the game receives no keyboard or mouse input: the mod hooks `GetDeviceState` and `GetDeviceData` of DirectInput and returns an empty state. Gamepad input goes through XInput and is not blocked. Without `VisualAtmosphere.dll` the mod ignores F5 and input is never blocked.
 
 ### Performance tools
 
@@ -129,7 +124,6 @@ MIT, see [LICENSE](LICENSE). Not affiliated with FromSoftware or Bandai Namco.
 
 - Текстуры в стиле Sekiro и конфиг по умолчанию под них.
 - Иконки статусов над врагами и боссами: яд, алая гниль, кровотечение, смертельная порча, обморожение, сон, безумие. Иконка загорается, когда статус сработал: шкала сопротивления прыгнула на 25 % или упала до нуля. Одновременное изменение больше двух шкал считается сбросом и не учитывается.
-- Окно настроек [EldenRing-VisualAtmosphere](https://github.com/DarkSailas/EldenRing-VisualAtmosphere) по F5 — появляется, только если установлен `VisualAtmosphere.dll`.
 - Необязательные инструменты производительности, по умолчанию выключены: журнал времени кадров, кэш перечисления устройств DirectInput и подсказка последовательного чтения для архивов игры. См. [Инструменты производительности](#инструменты-производительности).
 - Сборка через MinGW-w64 вместо Visual Studio.
 
@@ -152,10 +146,6 @@ path = './../mod/dll/PostureBarMod.dll'
 **Mod Engine 2**: добавьте путь к DLL в `external_dlls` в `config_eldenring.toml`.
 
 **[Elden Mod Loader](https://www.nexusmods.com/eldenring/mods/117)**: скопируйте их в `ELDEN RING\Game\mods`.
-
-### Меню VisualAtmosphere
-
-Если загружен `VisualAtmosphere.dll`, F5 открывает его окно настроек с пресетами и ползунками. Пока окно открыто, игра не получает ввод с клавиатуры и мыши: мод перехватывает `GetDeviceState` и `GetDeviceData` в DirectInput и отдаёт пустое состояние. Геймпад идёт через XInput и не блокируется. Без `VisualAtmosphere.dll` мод не реагирует на F5 и ввод не блокирует.
 
 ### Инструменты производительности
 
